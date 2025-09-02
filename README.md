@@ -1,98 +1,205 @@
+# 🚀 Sistema de Gestión de Almacén (SGA) - Backend
+
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## 📋 Descripción
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Backend del **Sistema de Gestión de Almacén (SGA)** desarrollado con **NestJS** y **Fastify** para proporcionar una API REST de alto rendimiento para la gestión de inventarios, almacenes y movimientos de stock.
 
-## Description
+## ✨ Características
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **🚀 Fastify**: Plataforma HTTP de alto rendimiento
+- **🏗️ NestJS**: Framework progresivo para Node.js
+- **📊 API REST**: Endpoints bien estructurados con prefijo `/api/v1`
+- **🔒 CORS**: Configurado para desarrollo y producción
+- **📝 Logging**: Logging integrado con Fastify
+- **🧪 Testing**: Tests unitarios y end-to-end con Jest
+- **🔧 TypeScript**: Código tipado y moderno
+- **📦 Modular**: Arquitectura modular y escalable
 
-## Project setup
+## 🛠️ Tecnologías
 
-```bash
-$ pnpm install
-```
+- **NestJS**: ^11.0.1
+- **Fastify**: ^5.5.0
+- **TypeScript**: ^5.7.3
+- **Jest**: ^30.0.0
+- **ESLint + Prettier**: Linting y formateo de código
 
-## Compile and run the project
+## 🚀 Instalación y Configuración
 
-```bash
-# development
-$ pnpm run start
+### Prerrequisitos
 
-# watch mode
-$ pnpm run start:dev
+- Node.js (versión 18 o superior)
+- pnpm (recomendado) o npm
 
-# production mode
-$ pnpm run start:prod
-```
-
-## Run tests
+### Instalación
 
 ```bash
-# unit tests
-$ pnpm run test
+# Clonar el repositorio
+git clone <url-del-repositorio>
+cd backend-sga
 
-# e2e tests
-$ pnpm run test:e2e
+# Instalar dependencias
+pnpm install
 
-# test coverage
-$ pnpm run test:cov
+# Configurar variables de entorno
+cp env.example .env
+# Editar .env con tus configuraciones
 ```
 
-## Deployment
+### Variables de Entorno
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Crea un archivo `.env` basado en `env.example`:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+```env
+# Configuración del Servidor
+PORT=3000
+NODE_ENV=development
+
+# Configuración de CORS
+CORS_ORIGIN=http://localhost:3000,http://localhost:4200
+
+# Configuración de Logging
+LOG_LEVEL=info
+```
+
+## 🏃‍♂️ Ejecución
+
+### Desarrollo
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+# Modo desarrollo con hot reload
+pnpm run start:dev
+
+# Modo debug
+pnpm run start:debug
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Producción
 
-## Resources
+```bash
+# Compilar
+pnpm run build
 
-Check out a few resources that may come in handy when working with NestJS:
+# Ejecutar
+pnpm run start:prod
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## 🧪 Testing
 
-## Support
+```bash
+# Tests unitarios
+pnpm run test
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+# Tests en modo watch
+pnpm run test:watch
 
-## Stay in touch
+# Tests end-to-end
+pnpm run test:e2e
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+# Cobertura de código
+pnpm run test:cov
+```
 
-## License
+## 📡 Endpoints de la API
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Base URL: `http://localhost:3000/api/v1`
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `GET` | `/` | Información de bienvenida del sistema |
+| `GET` | `/health` | Estado de salud de la aplicación |
+| `GET` | `/info` | Información del sistema y versión |
+
+### Ejemplo de Respuesta
+
+```json
+{
+  "message": "Bienvenido al Sistema de Gestión de Almacén (SGA) - Backend API",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "status": "success"
+}
+```
+
+## 🏗️ Arquitectura del Proyecto
+
+```
+src/
+├── app.controller.ts      # Controlador principal
+├── app.service.ts         # Servicios de la aplicación
+├── app.module.ts          # Módulo principal
+└── main.ts               # Punto de entrada (configuración Fastify)
+
+test/
+├── app.e2e-spec.ts       # Tests end-to-end
+└── jest-e2e.json         # Configuración Jest E2E
+
+src/app.controller.spec.ts # Tests unitarios
+```
+
+## 🔧 Scripts Disponibles
+
+| Comando | Descripción |
+|---------|-------------|
+| `pnpm run start` | Iniciar en modo desarrollo |
+| `pnpm run start:dev` | Modo desarrollo con hot reload |
+| `pnpm run start:debug` | Modo debug |
+| `pnpm run start:prod` | Modo producción |
+| `pnpm run build` | Compilar proyecto |
+| `pnpm run test` | Ejecutar tests unitarios |
+| `pnpm run test:e2e` | Ejecutar tests end-to-end |
+| `pnpm run lint` | Linting del código |
+| `pnpm run format` | Formateo con Prettier |
+
+## 🚧 Próximos Pasos
+
+### Fase 1: Base de Datos
+- [ ] Configurar TypeORM o Prisma
+- [ ] Crear entidades del dominio SGA
+- [ ] Implementar migraciones
+
+### Fase 2: Módulos del Negocio
+- [ ] Módulo de Productos (CRUD de inventario)
+- [ ] Módulo de Almacenes (gestión de ubicaciones)
+- [ ] Módulo de Movimientos (entradas/salidas)
+- [ ] Módulo de Usuarios (autenticación y autorización)
+
+### Fase 3: Funcionalidades Avanzadas
+- [ ] Validación de datos con class-validator
+- [ ] Autenticación JWT
+- [ ] Autorización basada en roles
+- [ ] Logging estructurado
+- [ ] Manejo de errores global
+
+## 📊 Estado del Proyecto
+
+- **Infraestructura**: ✅ 100% completa
+- **Configuración Fastify**: ✅ 100% completa
+- **API básica**: ✅ 100% completa
+- **Testing**: ✅ 100% completo
+- **Funcionalidades SGA**: 🚧 0% implementadas
+- **Base de datos**: 🚧 0% configurada
+
+## 🤝 Contribución
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## 🆘 Soporte
+
+- **Documentación NestJS**: [https://docs.nestjs.com](https://docs.nestjs.com)
+- **Documentación Fastify**: [https://www.fastify.io/docs](https://www.fastify.io/docs)
+- **Issues**: Crear un issue en el repositorio
+
+---
+
+**Desarrollado con ❤️ usando NestJS y Fastify**
