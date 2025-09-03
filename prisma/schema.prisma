@@ -10,4 +10,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Aquí puedes agregar tus modelos cuando los necesites
+model CatalogoInsumos {
+  idcatalogoinsumos  Int     @id @default(autoincrement()) @map("idcatalogoinsumos")
+  renglon            Int?    @map("renglon")
+  codigoinsumo       Int     @map("codigoinsumo")
+  nombreinsumo       String  @map("nombreinsumo")
+  caracteristicas    String? @map("caracteristicas")
+  nombrepresentacion String? @map("nombrepresentacion")
+  unidadmedida       String? @map("unidadmedida")
+  codigopresentacion Int?    @map("codigopresentacion")
+
+  @@map("catalogoinsumos")
+}

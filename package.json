@@ -15,10 +15,12 @@
     "lint": "eslint \"{src,apps,libs}/**/*.ts\" --fix"
   },
   "dependencies": {
+    "@fastify/multipart": "^9.0.3",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
-    "@nestjs/platform-fastify": "^11.1.6",
+    "@nestjs/platform-fastify": "11.1.6",
     "@prisma/client": "^6.15.0",
+    "csv-parse": "^6.1.0",
     "dotenv": "^17.2.2",
     "fastify": "^5.5.0",
     "prisma": "^6.15.0",
