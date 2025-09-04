@@ -121,20 +121,20 @@ export class CatalogoInsumosService {
           
           try {
             // Usar SQL directo con los nombres de columnas correctos
-            const sqlSelect = `SELECT * FROM "catalogoinsumos" WHERE "codigoinsumo" = $1`;
+            const sqlSelect = `SELECT * FROM "CatalogoInsumos" WHERE "codigoInsumo" = $1`;
             const existingRecords = await this.prisma.$queryRawUnsafe(sqlSelect, codigoInsumo) as any[];
             
             if (existingRecords && existingRecords.length > 0) {
               // Se actualizaran los datos si ya existen
               const sqlUpdate = `
-                UPDATE "catalogoinsumos" SET 
-                "nombreinsumo" = $1,
+                UPDATE "CatalogoInsumos" SET 
+                "nombreInsumo" = $1,
                 "renglon" = $2,
                 "caracteristicas" = $3,
-                "nombrepresentacion" = $4,
-                "unidadmedida" = $5,
-                "codigopresentacion" = $6
-                WHERE "codigoinsumo" = $7
+                "nombrePresentacion" = $4,
+                "unidadMedida" = $5,
+                "codigoPresentacion" = $6
+                WHERE "codigoInsumo" = $7
               `;
               
               await this.prisma.$executeRawUnsafe(
@@ -152,14 +152,14 @@ export class CatalogoInsumosService {
             } else {
               // Crear un nuevo registro
               const sqlInsert = `
-                INSERT INTO "catalogoinsumos" (
-                  "codigoinsumo", 
-                  "nombreinsumo",
+                INSERT INTO "CatalogoInsumos" (
+                  "codigoInsumo", 
+                  "nombreInsumo",
                   "renglon",
                   "caracteristicas",
-                  "nombrepresentacion",
-                  "unidadmedida",
-                  "codigopresentacion"
+                  "nombrePresentacion",
+                  "unidadMedida",
+                  "codigoPresentacion"
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7)
               `;
               
@@ -200,10 +200,10 @@ export class CatalogoInsumosService {
 
   async findAll(): Promise<CatalogoInsumos[]> {
     try {
-      // Usar SQL directo con los nombres de columnas correctos (todo en minúsculas)
+      // Usar SQL directo con los nombres de columnas correctos
       const sql = `
-        SELECT * FROM "catalogoinsumos" 
-        ORDER BY "codigoinsumo" ASC, "idcatalogoinsumos" ASC
+        SELECT * FROM "CatalogoInsumos" 
+        ORDER BY "codigoInsumo" ASC, "idCatalogoInsumos" ASC
       `;
       
       const insumos = await this.prisma.$queryRawUnsafe(sql);
