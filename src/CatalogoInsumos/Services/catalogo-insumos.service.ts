@@ -18,14 +18,24 @@ export class CatalogoInsumosService {
 
   constructor(private prisma: PrismaService) {}
 
-  async processCSVFile(filePath: string): Promise<{ success: number; errors: number; errorDetails: string[] }> {
+  async processCSVFile(filePath: string, abortSignal?: AbortSignal): Promise<{ success: number; errors: number; errorDetails: string[] }> {
     const results = { success: 0, errors: 0, errorDetails: [] as string[] };
 
     try {
+      // Función para verificar cancelación
+      const checkCancellation = () => {
+        if (abortSignal?.aborted) {
+          throw new Error('Procesamiento cancelado por el usuario');
+        }
+      };
+
+      checkCancellation(); // Verificar antes de empezar
+      
       // Verificar conexión a la base de datos y tabla
       try {
         await this.prisma.$queryRaw`SELECT 1`;
         this.logger.log('Conexión a la base de datos verificada');
+        checkCancellation(); // Verificar después de conectar DB
         
         try {
           const tablas = await this.prisma.$queryRaw`
@@ -40,6 +50,7 @@ export class CatalogoInsumosService {
         throw new Error(`Error de conexión: ${dbConnError.message}`);
       }
       
+      checkCancellation(); // Verificar antes de leer archivo
       // Leer archivo con codificación correcta para caracteres especiales
       const fileContent = await readFile(filePath, { encoding: 'utf-8' });
       
@@ -61,10 +72,19 @@ export class CatalogoInsumosService {
         .on('end', () => resolve(results));
       });
       
+      checkCancellation(); // Verificar después de parsear CSV
+      
       this.logger.log(`Se encontraron ${records.length} registros en el CSV`);
       
       // Procesar cada registro
-      for (const record of records) {
+      for (let i = 0; i < records.length; i++) {
+        const record = records[i];
+        
+        // Verificar cancelación cada 10 registros para mejor performance
+        if (i % 10 === 0) {
+          checkCancellation();
+        }
+        
         try {
           const codigoInsumoStr = record['CÓDIGO DE INSUMO'];
           if (!codigoInsumoStr) {
