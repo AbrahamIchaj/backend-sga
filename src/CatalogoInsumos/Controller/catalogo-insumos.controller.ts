@@ -56,7 +56,7 @@ export class CatalogoInsumosController {
       let data: MultipartFile;
       try {
         data = await req.file();
-        checkCancellation(); 
+        checkCancellation(); // Verificar cancelación después de recibir el archivo
         
         if (!data) {
           throw new HttpException('No se ha proporcionado ningún archivo', HttpStatus.BAD_REQUEST);
@@ -68,7 +68,7 @@ export class CatalogoInsumosController {
         throw new HttpException('Error al recibir el archivo: ' + fileError.message, HttpStatus.BAD_REQUEST);
       }
       
-      checkCancellation();
+      checkCancellation(); // Verificar cancelación antes de validar tipo MIME
       
       // Validar que el archivo es CSV
       const allowedMimeTypes = [
@@ -89,7 +89,7 @@ export class CatalogoInsumosController {
       
       checkCancellation(); // Verificar cancelación antes de crear directorio
       
-      // RUTA DEL DIRECTORIOOO ENDPOINT
+      // RUTA DEL DIRECTORIOOO
       await mkdir('./uploads', { recursive: true });
       
       // Generar nombre único para el archivo

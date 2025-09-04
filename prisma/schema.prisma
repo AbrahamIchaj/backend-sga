@@ -11,14 +11,210 @@ datasource db {
 }
 
 model CatalogoInsumos {
-  idcatalogoinsumos  Int     @id @default(autoincrement()) @map("idcatalogoinsumos")
-  renglon            Int?    @map("renglon")
-  codigoinsumo       Int     @map("codigoinsumo")
-  nombreinsumo       String  @map("nombreinsumo")
-  caracteristicas    String? @map("caracteristicas")
-  nombrepresentacion String? @map("nombrepresentacion")
-  unidadmedida       String? @map("unidadmedida")
-  codigopresentacion Int?    @map("codigopresentacion")
+  idCatalogoInsumos     Int                     @id @default(autoincrement())
+  renglon               Int
+  codigoInsumo          Int
+  nombreInsumo          String                  @db.VarChar(255)
+  caracteristicas       String                  @db.Text
+  nombrePresentacion    String                  @db.VarChar(255)
+  unidadMedida          String                  @db.VarChar(255)
+  codigoPresentacion    Int
+  IngresoComprasDetalle IngresoComprasDetalle[]
+  ReajusteDetalle       ReajusteDetalle[]
+  HistorialInventario   HistorialInventario[]
+}
 
-  @@map("catalogoinsumos")
+model IngresoCompras {
+  idIngresoCompras      Int                     @id @default(autoincrement())
+  numeroFactura         Int
+  serieFactura          String                  @db.VarChar(50)
+  tipoCompra            String                  @db.VarChar(50)
+  fechaIngreso          DateTime                @db.Date
+  proveedor             String                  @db.VarChar(250)
+  ordenCompra           Int
+  programa              Int
+  numero1h              Int
+  noKardex              Int
+  IngresoComprasDetalle IngresoComprasDetalle[]
+  Inventario            Inventario[]
+  Despachos             Despachos[]
+  HistorialInventario   HistorialInventario[]
+}
+
+model IngresoComprasDetalle {
+  idIngresoComprasDetalle Int                   @id @default(autoincrement())
+  idIngresoCompras        Int
+  idCatalogoInsumos       Int
+  renglon                 Int
+  codigoInsumo            Int
+  nombreInsumo            String                @db.VarChar(150)
+  codigoPresentacion      Int
+  presentacion            String                @db.VarChar(100)
+  cantidadTotal           Int
+  precioUnitario          Decimal               @db.Decimal(10, 3)
+  precioTotalFactura      Decimal               @db.Decimal(10, 3)
+  cartaCompromiso         Boolean               @default(false)
+  observaciones           String?               @db.Text
+  IngresoCompras          IngresoCompras        @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
+  CatalogoInsumos         CatalogoInsumos       @relation(fields: [idCatalogoInsumos], references: [idCatalogoInsumos])
+  IngresoComprasLotes     IngresoComprasLotes[]
+}
+
+model IngresoComprasLotes {
+  idIngresoComprasLotes   Int                   @id @default(autoincrement())
+  idIngresoComprasDetalle Int
+  tipoIngreso             String                @db.VarChar(50)
+  cantidad                Int
+  lote                    String?               @db.VarChar(75)
+  fechaVencimiento        DateTime?
+  IngresoComprasDetalle   IngresoComprasDetalle @relation(fields: [idIngresoComprasDetalle], references: [idIngresoComprasDetalle])
+  Inventario              Inventario[]
+}
+
+model Inventario {
+  idInventario          Int                   @id @default(autoincrement())
+  idIngresoCompras      Int
+  idIngresoComprasLotes Int
+  renglon               Int
+  codigoInsumo          Int
+  nombreInsumo          String                @db.VarChar(150)
+  caracteristicas       String                @db.VarChar(400)
+  codigoPresentacion    Int
+  presentacion          String                @db.VarChar(100)
+  unidadMedida          String                @db.VarChar(255)
+  lote                  String                @db.VarChar(75)
+  fechaVencimiento      DateTime
+  cantidadDisponible    Int
+  precioUnitario        Decimal               @db.Decimal(10, 3)
+  precioTotal           Decimal               @db.Decimal(10, 3)
+  IngresoCompras        IngresoCompras        @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
+  IngresoComprasLotes   IngresoComprasLotes   @relation(fields: [idIngresoComprasLotes], references: [idIngresoComprasLotes])
+  ReajusteDetalle       ReajusteDetalle[]
+  HistorialInventario   HistorialInventario[]
+  Despachos             Despachos[]
+}
+
+model Servicios {
+  idServicio    Int         @id @default(autoincrement())
+  nombre        String      @db.VarChar(200)
+  observaciones String?     @db.VarChar(400)
+  Despachos     Despachos[]
+}
+
+model Despachos {
+  idDespacho          Int                   @id @default(autoincrement())
+  fechaDespacho       DateTime              @default(now())
+  idInventario        Int
+  idIngresoCompras    Int
+  cantidad            Int
+  totalDespachado     Decimal               @db.Decimal(10, 3)
+  idServicio          Int
+  idUsuario           Int
+  observaciones       String?               @db.VarChar(300)
+  Inventario          Inventario            @relation(fields: [idInventario], references: [idInventario])
+  IngresoCompras      IngresoCompras        @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
+  Servicios           Servicios             @relation(fields: [idServicio], references: [idServicio])
+  Usuarios            Usuarios              @relation(fields: [idUsuario], references: [idUsuario])
+  HistorialInventario HistorialInventario[]
+}
+
+model Usuarios {
+  idUsuario           Int                   @id @default(autoincrement())
+  nombre              String                @db.VarChar(155)
+  correo              String                @unique @db.VarChar(155)
+  contrasena          String                @db.VarChar(10)
+  fechaCreacion       DateTime              @default(now())
+  img                 Bytes?
+  activo              Boolean               @default(true)
+  fechaDesabilitacion DateTime?
+  idRol               Int
+  rol                 String                @db.VarChar(50)
+  Despachos           Despachos[]
+  HistorialInventario HistorialInventario[]
+  Reajustes           Reajustes[]
+  Roles               Roles                 @relation(fields: [idRol], references: [idRoles])
+}
+
+model Roles {
+  idRoles     Int           @id @default(autoincrement())
+  nombreRol   String        @unique @db.VarChar(75)
+  descripcion String        @db.VarChar(255)
+  Usuarios    Usuarios[]
+  RolPermisos RolPermisos[]
+}
+
+model Permisos {
+  idPermisos  Int           @id @default(autoincrement())
+  permiso     String        @unique @db.VarChar(100)
+  descripcion String        @db.VarChar(255)
+  RolPermisos RolPermisos[]
+}
+
+model RolPermisos {
+  idRoles    Int
+  idPermisos Int
+  Roles      Roles    @relation(fields: [idRoles], references: [idRoles])
+  Permisos   Permisos @relation(fields: [idPermisos], references: [idPermisos])
+
+  @@id([idRoles, idPermisos])
+}
+
+model Reajustes {
+  idReajuste          Int                   @id @default(autoincrement())
+  fechaReajuste       DateTime              @default(now())
+  tipoReajuste        Int
+  referenciaDocumento String                @db.VarChar(100)
+  observaciones       String?               @db.VarChar(300)
+  idUsuario           Int
+  Usuarios            Usuarios              @relation(fields: [idUsuario], references: [idUsuario])
+  ReajusteDetalle     ReajusteDetalle[]
+  HistorialInventario HistorialInventario[]
+}
+
+model ReajusteDetalle {
+  idReajusteDetalle Int             @id @default(autoincrement())
+  idReajuste        Int
+  idInventario      Int
+  idCatalogoInsumos Int
+  lote              String?         @db.VarChar(50)
+  fechaVencimiento  DateTime?
+  presentacion      String?         @db.VarChar(155)
+  cantidad          Int
+  Reajustes         Reajustes       @relation(fields: [idReajuste], references: [idReajuste])
+  Inventario        Inventario      @relation(fields: [idInventario], references: [idInventario])
+  CatalogoInsumos   CatalogoInsumos @relation(fields: [idCatalogoInsumos], references: [idCatalogoInsumos])
+}
+
+model HistorialInventario {
+  idHistorial       Int             @id @default(autoincrement())
+  idCatalogoInsumos Int
+  idInventario      Int
+  idIngresoCompras  Int
+  idDespacho        Int
+  idReajuste        Int
+  lote              String?         @db.VarChar(50)
+  fechaVencimiento  DateTime
+  cantidad          Int
+  tipoMovimiento    String          @db.VarChar(20)
+  modulo            String          @db.VarChar(50)
+  fechaMovimiento   DateTime        @default(now())
+  idUsuario         Int
+  CatalogoInsumos   CatalogoInsumos @relation(fields: [idCatalogoInsumos], references: [idCatalogoInsumos])
+  Inventario        Inventario      @relation(fields: [idInventario], references: [idInventario])
+  IngresoCompras    IngresoCompras  @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
+  Despachos         Despachos       @relation(fields: [idDespacho], references: [idDespacho])
+  Reajustes         Reajustes       @relation(fields: [idReajuste], references: [idReajuste])
+  Usuarios          Usuarios        @relation(fields: [idUsuario], references: [idUsuario])
+}
+
+model Abastecimientos {
+  idAbastecimiento    Int     @id @default(autoincrement())
+  renglon             Int
+  activo              Boolean @default(true)
+  codigoInsumo        Int
+  nombreInsumo        String  @db.VarChar(150)
+  presentacion        String  @db.VarChar(100)
+  existencias         Int
+  promedioMensual     Int
+  mesesAbastecimiento Decimal @db.Decimal(3, 2)
 }
