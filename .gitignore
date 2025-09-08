@@ -2,6 +2,11 @@
 /dist
 /node_modules
 /build
+.readme.md
+/BaseDatos
+/prisma
+/uploads
+.env.example
 
 # Logs
 logs
