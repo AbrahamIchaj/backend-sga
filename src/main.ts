@@ -42,43 +42,6 @@ async function bootstrap() {
   // Iniciar la aplicación
   await app.listen(process.env.PORT ?? `${PORT_AUX}`, '0.0.0.0');
   
-  console.log(
-    `🚀 Aplicación SGA ejecutándose en: http://localhost:${process.env.PORT ?? PORT_AUX}`,
-  );
-  console.log(
-    `📋 API disponible en: http://localhost:${process.env.PORT ?? PORT_AUX}/api/v1`,
-  );
-  console.log(
-    `🔧 Endpoints disponibles:
-    
-    📦 CATÁLOGO INSUMOS:
-    - GET    /api/v1/catalogo-insumos - Listar insumos
-    - GET    /api/v1/catalogo-insumos/search?query=... - Buscar insumos
-    - POST   /api/v1/catalogo-insumos/upload - Subir CSV
-    - POST   /api/v1/catalogo-insumos/cancel-upload - Cancelar subida
-    - GET    /api/v1/catalogo-insumos/debug - Debug DB
-    
-    🛠️ SERVICIOS:
-    - GET    /api/v1/servicios - Listar servicios
-    - GET    /api/v1/servicios/search?query=... - Buscar servicios
-    - POST   /api/v1/servicios - Crear servicio
-    - GET    /api/v1/servicios/:id - Obtener servicio
-    - PATCH  /api/v1/servicios/:id - Actualizar servicio (parcial)
-    - PUT    /api/v1/servicios/:id - Reemplazar servicio (completo)
-    - DELETE /api/v1/servicios/:id - Eliminar servicio
-    
-    🔐 PERMISOS:
-    - GET    /api/v1/permisos - Listar permisos
-    - GET    /api/v1/permisos/search?query=... - Buscar permisos
-    - GET    /api/v1/permisos/without-roles - Permisos sin roles asignados
-    - GET    /api/v1/permisos/by-role/:roleId - Permisos de un rol específico
-    - GET    /api/v1/permisos/by-name/:permiso - Buscar por nombre exacto
-    - POST   /api/v1/permisos - Crear permiso
-    - GET    /api/v1/permisos/:id - Obtener permiso
-    - PATCH  /api/v1/permisos/:id - Actualizar permiso (parcial)
-    - PUT    /api/v1/permisos/:id - Reemplazar permiso (completo)
-    - DELETE /api/v1/permisos/:id - Eliminar permiso`,
-  );
 }
 
 void bootstrap();
