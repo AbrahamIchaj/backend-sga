@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Req, Logger, HttpException, HttpStatus, Body } from '@nestjs/common';
+import { Controller, Post, Get, Req, Logger, HttpException, HttpStatus, Body, Query } from '@nestjs/common';
 import { CatalogoInsumosService } from '../Services/catalogo-insumos.service';
 import type { FastifyRequest } from 'fastify';
 import * as fs from 'fs';
@@ -220,6 +220,36 @@ export class CatalogoInsumosController {
           HttpStatus.INTERNAL_SERVER_ERROR
         );
       }
+    }
+  }
+
+  @Get('search')
+  async search(@Req() req: any) {
+    try {
+      const query = req.query?.query || req.query?.q;
+      
+      if (!query) {
+        throw new HttpException('El parámetro query es requerido', HttpStatus.BAD_REQUEST);
+      }
+
+      const insumos = await this.catalogoInsumosService.search(query);
+      
+      return {
+        success: true,
+        message: `Búsqueda "${query}" encontró ${insumos.length} resultados`,
+        data: insumos,
+      };
+    } catch (error) {
+      this.logger.error(`Error en búsqueda: ${error.message}`);
+      
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      
+      throw new HttpException(
+        `Error en búsqueda: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 

@@ -6,7 +6,6 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import type { FastifyInstance } from 'fastify';
-import { MultipartFile } from '@fastify/multipart';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -14,13 +13,21 @@ async function bootstrap() {
     new FastifyAdapter()
   );
 
+  const PORT_AUX = 3001;
+
+  // Dirección de Prefijo global de las API's
+  app.setGlobalPrefix('api/v1');
+
+
   // Configurar CORS y otros middlewares
   app.enableCors({
     origin: process.env.CORS_ORIGIN?.split(',') || true,
     credentials: true,
   });
+
+
   
-  // Registrar el plugin multipart
+  // Registrar el plugin multipart  CatalogoInsumos
   const fastifyInstance = app.getHttpAdapter().getInstance() as FastifyInstance;
   await fastifyInstance.register(import('@fastify/multipart'), {
     limits: {
@@ -31,10 +38,9 @@ async function bootstrap() {
     }
   });
 
-  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
-  console.log(
-    `🚀 Aplicación SGA ejecutándose en: http://localhost:${process.env.PORT ?? 3000}`,
-  );
+
+  // Iniciar la aplicación
+  await app.listen(process.env.PORT ?? `${PORT_AUX}`, '0.0.0.0');
 }
 
 void bootstrap();

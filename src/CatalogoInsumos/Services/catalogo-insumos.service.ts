@@ -224,6 +224,48 @@ export class CatalogoInsumosService {
     }
   }
   
+  async search(query: string): Promise<CatalogoInsumos[]> {
+    try {
+      if (!query.trim()) {
+        return [];
+      }
+
+      const insumos = await this.prisma.catalogoInsumos.findMany({
+        where: {
+          OR: [
+            {
+              nombreInsumo: {
+                contains: query.trim(),
+                mode: 'insensitive',
+              },
+            },
+            {
+              codigoInsumo: {
+                equals: parseInt(query.trim()) || undefined,
+              },
+            },
+            {
+              caracteristicas: {
+                contains: query.trim(),
+                mode: 'insensitive',
+              },
+            },
+          ],
+        },
+        orderBy: {
+          nombreInsumo: 'asc',
+        },
+        take: 50, // Limitar resultados para performance
+      });
+
+      this.logger.log(`Búsqueda "${query}" encontró ${insumos.length} resultados`);
+      return insumos;
+    } catch (error) {
+      this.logger.error(`Error en búsqueda "${query}": ${error.message}`);
+      throw error;
+    }
+  }
+
   async debugDatabase() {
     try {
       // 1. Probar conexión básica
