@@ -14,10 +14,10 @@ model CatalogoInsumos {
   idCatalogoInsumos     Int                     @id @default(autoincrement())
   renglon               Int
   codigoInsumo          Int
-  nombreInsumo          String                  @db.VarChar(255)
+  nombreInsumo          String                  @db.Text
   caracteristicas       String                  @db.Text
-  nombrePresentacion    String                  @db.VarChar(255)
-  unidadMedida          String                  @db.VarChar(255)
+  nombrePresentacion    String                  @db.Text
+  unidadMedida          String                  @db.Text
   codigoPresentacion    Int
   IngresoComprasDetalle IngresoComprasDetalle[]
   ReajusteDetalle       ReajusteDetalle[]
