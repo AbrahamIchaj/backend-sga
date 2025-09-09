@@ -65,7 +65,8 @@ export class RolesService {
           Usuarios: {
             select: {
               idUsuario: true,
-              nombre: true,
+              nombres: true,
+              apellidos: true,
               correo: true,
               activo: true,
             },
@@ -95,7 +96,8 @@ export class RolesService {
           Usuarios: {
             select: {
               idUsuario: true,
-              nombre: true,
+              nombres: true,
+              apellidos: true,
               correo: true,
               activo: true,
               fechaCreacion: true,
@@ -136,7 +138,8 @@ export class RolesService {
           Usuarios: {
             select: {
               idUsuario: true,
-              nombre: true,
+              nombres: true,
+              apellidos: true,
               correo: true,
               activo: true,
             },
@@ -163,11 +166,11 @@ export class RolesService {
       // Verificar si el rol está siendo usado por algún usuario
       const usuariosConRol = await this.prisma.usuarios.findMany({
         where: { idRol: id },
-        select: { idUsuario: true, nombre: true },
+        select: { idUsuario: true, nombres: true, apellidos: true },
       });
 
       if (usuariosConRol.length > 0) {
-        const nombresUsuarios = usuariosConRol.map(u => u.nombre).join(', ');
+        const nombresUsuarios = usuariosConRol.map(u => `${u.nombres} ${u.apellidos}`).join(', ');
         throw new Error(`No se puede eliminar el rol porque está asignado a los siguientes usuarios: ${nombresUsuarios}`);
       }
 
@@ -332,7 +335,8 @@ export class RolesService {
             Usuarios: {
               select: {
                 idUsuario: true,
-                nombre: true,
+                nombres: true,
+                apellidos: true,
                 correo: true,
                 activo: true,
               },
@@ -416,7 +420,8 @@ export class RolesService {
           Usuarios: {
             select: {
               idUsuario: true,
-              nombre: true,
+              nombres: true,
+              apellidos: true,
               correo: true,
               activo: true,
             },

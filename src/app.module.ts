@@ -5,9 +5,16 @@ import { CatalogoInsumosModule } from './CatalogoInsumos/Module/catalogo-insumos
 import { ServiciosModule } from './Servicios/Module/servicios.module';
 import { PermisosModule } from './Permisos/Module/permisos.module';
 import { RolesModule } from './Roles/Module/roles.module';
+import { UsuariosModule } from './Usuarios/Module/usuarios.module';
 
 @Module({
-  imports: [CatalogoInsumosModule, ServiciosModule, PermisosModule, RolesModule],
+  imports: [
+    CatalogoInsumosModule, 
+    ServiciosModule, 
+    PermisosModule, 
+    RolesModule,
+    UsuariosModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

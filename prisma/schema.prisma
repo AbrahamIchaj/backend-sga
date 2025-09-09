@@ -119,22 +119,42 @@ model Despachos {
 }
 
 model Usuarios {
-  idUsuario           Int                   @id @default(autoincrement())
-  nombres             String                @db.VarChar(255)
-  apellidos           String                @db.VarChar(255)
-  correo              String                @unique @db.VarChar(255)
-  passwordHash        String                @db.VarChar(255)
-  telefono            Int?
-  fechaCreacion       DateTime              @default(now())
-  img                 Bytes?
-  activo              Boolean               @default(true)
-  fechaDesabilitacion DateTime?
-  ultimoAcceso        DateTime?
-  idRol               Int
-  Despachos           Despachos[]
-  HistorialInventario HistorialInventario[]
-  Reajustes           Reajustes[]
-  Roles               Roles                 @relation(fields: [idRol], references: [idRoles])
+  idUsuario              Int                      @id @default(autoincrement())
+  nombres                String                   @db.VarChar(255)
+  apellidos              String                   @db.VarChar(255)
+  correo                 String                   @unique @db.VarChar(255)
+  passwordHash           String                   @db.VarChar(255)
+  telefono               Int?
+  fechaCreacion          DateTime                 @default(now())
+  img                    Bytes?
+  activo                 Boolean                  @default(true)
+  fechaDesabilitacion    DateTime?
+  ultimoAcceso           DateTime?
+  idRol                  Int
+  // Campos para contraseñas temporales
+  esTemporal             Boolean                  @default(false)
+  fechaPasswordTemporal  DateTime?
+  debesCambiarPassword   Boolean                  @default(false)
+  intentosCambioPassword Int                      @default(0)
+  Despachos              Despachos[]
+  HistorialInventario    HistorialInventario[]
+  Reajustes              Reajustes[]
+  Roles                  Roles                    @relation(fields: [idRol], references: [idRoles])
+  LogPasswordsTemporales LogPasswordsTemporales[]
+}
+
+model LogPasswordsTemporales {
+  idLog            Int       @id @default(autoincrement())
+  idUsuario        Int
+  passwordTemporal String    @db.VarChar(255) // ⚠️ SOLO para passwords temporales
+  fechaGeneracion  DateTime  @default(now())
+  fechaExpiracion  DateTime
+  usado            Boolean   @default(false)
+  fechaUso         DateTime?
+  ipGeneracion     String?   @db.VarChar(45)
+  adminGenerador   String    @db.VarChar(255)
+  motivoGeneracion String    @db.VarChar(500)
+  Usuario          Usuarios  @relation(fields: [idUsuario], references: [idUsuario])
 }
 
 model Roles {
