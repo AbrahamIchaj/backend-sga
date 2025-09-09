@@ -120,15 +120,17 @@ model Despachos {
 
 model Usuarios {
   idUsuario           Int                   @id @default(autoincrement())
-  nombre              String                @db.VarChar(155)
-  correo              String                @unique @db.VarChar(155)
-  contrasena          String                @db.VarChar(10)
+  nombres             String                @db.VarChar(255)
+  apellidos           String                @db.VarChar(255)
+  correo              String                @unique @db.VarChar(255)
+  passwordHash        String                @db.VarChar(15)
+  telefono            Int?
   fechaCreacion       DateTime              @default(now())
   img                 Bytes?
   activo              Boolean               @default(true)
   fechaDesabilitacion DateTime?
+  ultimoAcceso        DateTime?
   idRol               Int
-  rol                 String                @db.VarChar(50)
   Despachos           Despachos[]
   HistorialInventario HistorialInventario[]
   Reajustes           Reajustes[]
