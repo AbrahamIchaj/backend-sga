@@ -153,6 +153,7 @@ model Permisos {
 model RolPermisos {
   idRoles    Int
   idPermisos Int
+  activo     Boolean  @default(true)
   Roles      Roles    @relation(fields: [idRoles], references: [idRoles])
   Permisos   Permisos @relation(fields: [idPermisos], references: [idPermisos])
 

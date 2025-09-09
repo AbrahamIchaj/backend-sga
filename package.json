@@ -2,7 +2,7 @@
   "name": "backend-sga",
   "version": "0.0.1",
   "description": "Sistema de Gestión de Almacén - Backend con NestJS y Fastify",
-  "author": "",
+  "author": "AbrahamIchaj",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
