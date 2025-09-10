@@ -209,6 +209,7 @@ export class GestionContrasenasController {
     }
   }
 
+  // CAMBIO DE CONTRASEÑA TEMPORAL POR USUARIO
   @Put(':id/password/change-temporary')
   async changeTemporaryPassword(
     @Param('id', ParseIntPipe) usuarioId: number,
@@ -239,6 +240,7 @@ export class GestionContrasenasController {
     }
   }
 
+  // ADMIN: OBTENER CONTRASEÑAS TEMPORALES GENERADAS
   @Get('admin/temporary-passwords')
   async getAdminTemporaryPasswords(
     @Query('adminEmail') adminEmail: string,
@@ -266,6 +268,7 @@ export class GestionContrasenasController {
     }
   }
 
+  // LIMPIAR CONTRASEÑAS TEMPORALES EXPIRADAS
   @Post('admin/cleanup-expired')
   async cleanupExpiredPasswords() {
     try {
@@ -285,6 +288,7 @@ export class GestionContrasenasController {
     }
   }
 
+  // ESTADÍSTICAS DE CONTRASEÑAS TEMPORALES
   @Get('admin/temporary-passwords/stats')
   async getTemporaryPasswordsStats(@Query('adminEmail') adminEmail?: string) {
     try {
