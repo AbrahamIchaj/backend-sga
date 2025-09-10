@@ -47,9 +47,10 @@ model IngresoComprasDetalle {
   idCatalogoInsumos       Int
   renglon                 Int
   codigoInsumo            Int
-  nombreInsumo            String                @db.VarChar(150)
+  nombreInsumo            String                @db.Text
+  caracteristicas         String                @db.Text
   codigoPresentacion      Int
-  presentacion            String                @db.VarChar(100)
+  presentacion            String                @db.Text
   cantidadTotal           Int
   precioUnitario          Decimal               @db.Decimal(10, 3)
   precioTotalFactura      Decimal               @db.Decimal(10, 3)
@@ -77,13 +78,13 @@ model Inventario {
   idIngresoComprasLotes Int
   renglon               Int
   codigoInsumo          Int
-  nombreInsumo          String                @db.VarChar(150)
-  caracteristicas       String                @db.VarChar(400)
+  nombreInsumo          String                @db.Text
+  caracteristicas       String                @db.Text
   codigoPresentacion    Int
-  presentacion          String                @db.VarChar(100)
-  unidadMedida          String                @db.VarChar(255)
+  presentacion          String                @db.Text
+  unidadMedida          String                @db.Text
   lote                  String                @db.VarChar(75)
-  fechaVencimiento      DateTime
+  fechaVencimiento      DateTime?
   cantidadDisponible    Int
   precioUnitario        Decimal               @db.Decimal(10, 3)
   precioTotal           Decimal               @db.Decimal(10, 3)
