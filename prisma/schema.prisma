@@ -68,6 +68,8 @@ model IngresoComprasLotes {
   cantidad                Int
   lote                    String?               @db.VarChar(75)
   fechaVencimiento        DateTime?
+  mesesDevolucion         Int?
+  observacionesDevolucion String?               @db.Text
   IngresoComprasDetalle   IngresoComprasDetalle @relation(fields: [idIngresoComprasDetalle], references: [idIngresoComprasDetalle])
   Inventario              Inventario[]
 }

@@ -47,6 +47,18 @@ export class ComprasController {
     }
   }
 
+  @Get(':id/detalle-completo')
+  async findOneWithDetails(@Param('id', ParseIntPipe) id: number) {
+    try {
+      const data = await this.comprasService.findOneWithDetails(id);
+      return { success: true, data };
+    } catch (error) {
+      this.logger.error(`Error al obtener detalle completo de compra ${id}: ${error.message}`);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(`Error al obtener detalle completo: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   @Put(':id')
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCompraDto) {
     try {

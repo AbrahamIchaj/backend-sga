@@ -12,13 +12,13 @@ export class UpdateCompraDto {
 
 export class AnularCompraDto {
   motivo: string;
-  idUsuario: number; // Para auditoría del historial
+  idUsuario: number;
 }
 
 export class ListComprasQueryDto {
   proveedor?: string;
-  desde?: string; // ISO date string
-  hasta?: string; // ISO date string
+  desde?: string;
+  hasta?: string;
   numeroFactura?: number;
   serieFactura?: string;
   tipoCompra?: string;

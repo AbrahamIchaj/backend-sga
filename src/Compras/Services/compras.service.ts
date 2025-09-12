@@ -10,14 +10,11 @@ export class ComprasService {
 
   constructor(private prisma: PrismaService) {}
 
-  // Crear compra completa con detalles y lotes, impactando inventario e historial
   async create(dto: CreateCompraDto, idUsuario: number) {
-    // Validaciones mínimas
     if (!dto.detalles?.length) {
       throw new BadRequestException('La compra debe incluir al menos un detalle');
     }
 
-    // Validar lotes y cantidades
     dto.detalles.forEach((d, idx) => {
       const totalLotes = d.lotes?.reduce((acc, l) => acc + (l.cantidad || 0), 0) || 0;
       if (totalLotes !== d.cantidadTotal) {
@@ -44,7 +41,6 @@ export class ComprasService {
 
   let totalFactura = 0;
 
-      // 2) Por cada detalle, crear IngresoComprasDetalle y sus lotes
       for (const det of dto.detalles) {
         totalFactura += Number(det.precioTotalFactura || 0);
 
@@ -66,7 +62,6 @@ export class ComprasService {
           },
         });
 
-        // 3) Crear lotes e impactar Inventario + HistorialInventario por lote
         for (const lote of det.lotes) {
           const loteCreado = await tx.ingresoComprasLotes.create({
             data: {
@@ -75,10 +70,11 @@ export class ComprasService {
               cantidad: lote.cantidad,
               lote: lote.lote?.trim() || null,
               fechaVencimiento: lote.fechaVencimiento ? new Date(lote.fechaVencimiento) : null,
+              mesesDevolucion: lote.mesesDevolucion || null,
+              observacionesDevolucion: lote.observacionesDevolucion?.trim() || null,
             },
           });
 
-          // En Inventario, lote y presentacion son NOT NULL según schema, validar
           const inv = await tx.inventario.create({
             data: {
               idIngresoCompras: ingreso.idIngresoCompras,
@@ -97,8 +93,6 @@ export class ComprasService {
               precioTotal: new Prisma.Decimal(Number(det.precioUnitario) * loteCreado.cantidad),
             },
           });
-          // Nota: No se registra HistorialInventario aquí debido a restricciones de FK (idDespacho/idReajuste NOT NULL).
-          // Se recomienda ajustar el esquema para permitir null en esos campos o crear un flujo de auditoría dedicado.
         }
       }
 
@@ -125,6 +119,70 @@ export class ComprasService {
     });
     if (!compra) throw new NotFoundException(`Compra ${id} no encontrada`);
     return compra;
+  }
+
+  // Obtener compra por ID con todos los detalles y lotes completos
+  async findOneWithDetails(id: number) {
+    const compra = await this.prisma.ingresoCompras.findUnique({
+      where: { idIngresoCompras: id },
+      include: {
+        IngresoComprasDetalle: {
+          include: {
+            IngresoComprasLotes: true,
+            CatalogoInsumos: {
+              select: {
+                idCatalogoInsumos: true,
+                nombreInsumo: true,
+                caracteristicas: true,
+                nombrePresentacion: true,
+                unidadMedida: true,
+                codigoInsumo: true,
+                codigoPresentacion: true,
+                renglon: true
+              }
+            }
+          },
+          orderBy: { renglon: 'asc' }
+        },
+      },
+    });
+
+    if (!compra) {
+      throw new NotFoundException(`Compra con ID ${id} no encontrada`);
+    }
+
+    // Calcular totales
+    const totalItems = compra.IngresoComprasDetalle.length;
+    const totalCantidad = compra.IngresoComprasDetalle.reduce(
+      (sum, detalle) => sum + detalle.cantidadTotal, 
+      0
+    );
+    const totalFactura = compra.IngresoComprasDetalle.reduce(
+      (sum, detalle) => sum + Number(detalle.precioTotalFactura), 
+      0
+    );
+
+    return {
+      ...compra,
+      totalItems,
+      totalCantidad,
+      totalFactura,
+      // Agregar información de productos sin lote vs con lote
+      resumenLotes: compra.IngresoComprasDetalle.map(detalle => ({
+        idDetalle: detalle.idIngresoComprasDetalle,
+        nombreInsumo: detalle.nombreInsumo,
+        cantidadTotal: detalle.cantidadTotal,
+        lotes: detalle.IngresoComprasLotes.map(lote => ({
+          ...lote,
+          tieneVencimiento: !!lote.fechaVencimiento,
+          tieneDevolucion: !!lote.mesesDevolucion,
+          fechaNotificacion: lote.fechaVencimiento && lote.mesesDevolucion ? 
+            new Date(new Date(lote.fechaVencimiento).setMonth(
+              new Date(lote.fechaVencimiento).getMonth() - lote.mesesDevolucion
+            )) : null
+        }))
+      }))
+    };
   }
 
   async findAll(params: { proveedor?: string; desde?: string; hasta?: string; page?: number; limit?: number }) {
@@ -182,7 +240,7 @@ export class ComprasService {
     return compra;
   }
 
-  // Anular compra: pone a 0 inventario generado por la compra (sin historial por restricciones actuales)
+  // Anular compra
   async anular(id: number, idUsuario: number, motivo: string) {
     return await this.prisma.$transaction(async (tx) => {
       const compra = await tx.ingresoCompras.findUnique({
@@ -210,7 +268,6 @@ export class ComprasService {
         }
       }
 
-      // Opcional: borrar registros detalle/lotes o mantenerlos como históricos. Aquí mantenemos.
       return { message: `Compra ${id} anulada. Motivo: ${motivo}` };
     });
   }

@@ -1,8 +1,10 @@
 export class CreateCompraLoteDto {
-  tipoIngreso: string; // Ej.: 'COMPRA', 'DONACION'
+  tipoIngreso: string;
   cantidad: number;
-  lote?: string; // Requerido para inventario (lote no puede ser null en Inventario)
+  lote?: string;
   fechaVencimiento?: Date | string;
+  mesesDevolucion?: number;
+  observacionesDevolucion?: string;
 }
 
 export class CreateCompraDetalleDto {
@@ -14,8 +16,8 @@ export class CreateCompraDetalleDto {
   codigoPresentacion: number;
   presentacion: string;
   cantidadTotal: number;
-  precioUnitario: number; // Se almacenará como Decimal en DB
-  precioTotalFactura: number; // Se almacenará como Decimal en DB
+  precioUnitario: number; 
+  precioTotalFactura: number;
   cartaCompromiso?: boolean;
   observaciones?: string;
   lotes: CreateCompraLoteDto[];
@@ -25,7 +27,7 @@ export class CreateCompraDto {
   numeroFactura: number;
   serieFactura: string;
   tipoCompra: string;
-  fechaIngreso: Date | string; // ISO string permitido
+  fechaIngreso: Date | string;
   proveedor: string;
   ordenCompra: number;
   programa: number;
