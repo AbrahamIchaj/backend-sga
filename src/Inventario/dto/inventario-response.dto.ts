@@ -8,6 +8,9 @@ export interface InventarioResponse {
   presentacion: string;
   unidadMedida: string;
   lote: string;
+  cartaCompromiso?: boolean;
+  mesesDevolucion?: number | null;
+  observacionesDevolucion?: string | null;
   fechaVencimiento: Date | null;
   cantidadDisponible: number;
   precioUnitario: number;
@@ -31,6 +34,9 @@ export interface ExistenciasResponse {
   existenciaTotal: number;
   lotes: {
     lote: string;
+    cartaCompromiso?: boolean;
+    mesesDevolucion?: number | null;
+    observacionesDevolucion?: string | null;
     fechaVencimiento: Date | null;
     cantidad: number;
     precioUnitario: number;

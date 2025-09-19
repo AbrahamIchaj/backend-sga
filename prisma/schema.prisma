@@ -74,26 +74,29 @@ model IngresoComprasLotes {
 }
 
 model Inventario {
-  idInventario          Int                   @id @default(autoincrement())
-  idIngresoCompras      Int
-  idIngresoComprasLotes Int
-  renglon               Int
-  codigoInsumo          Int
-  nombreInsumo          String                @db.Text
-  caracteristicas       String                @db.Text
-  codigoPresentacion    Int
-  presentacion          String                @db.Text
-  unidadMedida          String                @db.Text
-  lote                  String                @db.VarChar(75)
-  fechaVencimiento      DateTime?
-  cantidadDisponible    Int
-  precioUnitario        Decimal               @db.Decimal(10, 3)
-  precioTotal           Decimal               @db.Decimal(10, 3)
-  IngresoCompras        IngresoCompras        @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
-  IngresoComprasLotes   IngresoComprasLotes   @relation(fields: [idIngresoComprasLotes], references: [idIngresoComprasLotes])
-  ReajusteDetalle       ReajusteDetalle[]
-  HistorialInventario   HistorialInventario[]
-  Despachos             Despachos[]
+  idInventario            Int                   @id @default(autoincrement())
+  idIngresoCompras        Int
+  idIngresoComprasLotes   Int
+  renglon                 Int
+  codigoInsumo            Int
+  nombreInsumo            String                @db.Text
+  caracteristicas         String                @db.Text
+  codigoPresentacion      Int
+  presentacion            String                @db.Text
+  unidadMedida            String                @db.Text
+  lote                    String                @db.VarChar(75)
+  fechaVencimiento        DateTime?
+  cartaCompromiso         Boolean               @default(false)
+  mesesDevolucion         Int?
+  observacionesDevolucion String?               @db.Text
+  cantidadDisponible      Int
+  precioUnitario          Decimal               @db.Decimal(10, 3)
+  precioTotal             Decimal               @db.Decimal(10, 3)
+  IngresoCompras          IngresoCompras        @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
+  IngresoComprasLotes     IngresoComprasLotes   @relation(fields: [idIngresoComprasLotes], references: [idIngresoComprasLotes])
+  ReajusteDetalle         ReajusteDetalle[]
+  HistorialInventario     HistorialInventario[]
+  Despachos               Despachos[]
 }
 
 model Servicios {
