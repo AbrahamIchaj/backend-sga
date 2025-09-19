@@ -41,6 +41,9 @@ export class ComprasService {
 
   let totalFactura = 0;
 
+  // Debug: log detalles recibidos
+  this.logger.debug(`Detalles recibidos (count=${dto.detalles.length}): ${JSON.stringify(dto.detalles.map(d => ({ idCatalogoInsumos: d.idCatalogoInsumos })) )}`);
+
       for (const det of dto.detalles) {
         totalFactura += Number(det.precioTotalFactura || 0);
 
@@ -57,23 +60,31 @@ export class ComprasService {
             cantidadTotal: det.cantidadTotal,
             precioUnitario: new Prisma.Decimal(det.precioUnitario),
             precioTotalFactura: new Prisma.Decimal(det.precioTotalFactura),
-            cartaCompromiso: det.cartaCompromiso ?? false,
+            // nota: campo cartaCompromiso eliminado de IngresoComprasDetalle (persistido sólo en lotes)
             observaciones: det.observaciones ?? null,
           },
         });
 
         for (const lote of det.lotes) {
-          const loteCreado = await tx.ingresoComprasLotes.create({
-            data: {
-              idIngresoComprasDetalle: detalle.idIngresoComprasDetalle,
-              tipoIngreso: lote.tipoIngreso?.trim() || dto.tipoCompra,
-              cantidad: lote.cantidad,
-              lote: lote.lote?.trim() || null,
-              fechaVencimiento: lote.fechaVencimiento ? new Date(lote.fechaVencimiento) : null,
-              mesesDevolucion: lote.mesesDevolucion || null,
-              observacionesDevolucion: lote.observacionesDevolucion?.trim() || null,
-            },
-          });
+          const dataForLote: any = {
+            idIngresoComprasDetalle: detalle.idIngresoComprasDetalle,
+            cantidad: lote.cantidad,
+            lote: lote.lote?.trim() || null,
+            fechaVencimiento: lote.fechaVencimiento ? new Date(lote.fechaVencimiento) : null,
+            mesesDevolucion: lote.mesesDevolucion || null,
+            observacionesDevolucion: lote.observacionesDevolucion?.trim() || null,
+            // Normalizar cartaCompromiso por lote (acepta 1/0, '1', true, false)
+            cartaCompromiso: (() => {
+              const v: any = lote.cartaCompromiso;
+              if (v === null || v === undefined) return false;
+              if (typeof v === 'boolean') return v;
+              if (typeof v === 'number') return v === 1;
+              if (typeof v === 'string') return v === '1' || v.toLowerCase() === 'true';
+              return Boolean(v);
+            })(),
+          };
+
+          const loteCreado = await tx.ingresoComprasLotes.create({ data: dataForLote as any });
 
           const inv = await tx.inventario.create({
             data: {

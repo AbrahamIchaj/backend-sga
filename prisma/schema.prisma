@@ -54,7 +54,6 @@ model IngresoComprasDetalle {
   cantidadTotal           Int
   precioUnitario          Decimal               @db.Decimal(10, 3)
   precioTotalFactura      Decimal               @db.Decimal(10, 3)
-  cartaCompromiso         Boolean               @default(false)
   observaciones           String?               @db.Text
   IngresoCompras          IngresoCompras        @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
   CatalogoInsumos         CatalogoInsumos       @relation(fields: [idCatalogoInsumos], references: [idCatalogoInsumos])
@@ -64,7 +63,7 @@ model IngresoComprasDetalle {
 model IngresoComprasLotes {
   idIngresoComprasLotes   Int                   @id @default(autoincrement())
   idIngresoComprasDetalle Int
-  tipoIngreso             String                @db.VarChar(50)
+  cartaCompromiso         Boolean               @default(false)
   cantidad                Int
   lote                    String?               @db.VarChar(75)
   fechaVencimiento        DateTime?

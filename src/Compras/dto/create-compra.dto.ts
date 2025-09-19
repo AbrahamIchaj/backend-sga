@@ -1,8 +1,8 @@
 export class CreateCompraLoteDto {
-  tipoIngreso: string;
   cantidad: number;
   lote?: string;
   fechaVencimiento?: Date | string;
+  cartaCompromiso?: number | boolean;
   mesesDevolucion?: number;
   observacionesDevolucion?: string;
 }
@@ -18,7 +18,6 @@ export class CreateCompraDetalleDto {
   cantidadTotal: number;
   precioUnitario: number; 
   precioTotalFactura: number;
-  cartaCompromiso?: boolean;
   observaciones?: string;
   lotes: CreateCompraLoteDto[];
 }

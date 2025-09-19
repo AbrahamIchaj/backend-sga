@@ -14,7 +14,8 @@ export class ComprasController {
     try {
       const { compra, idUsuario } = body;
       if (!idUsuario) throw new HttpException('idUsuario es requerido', HttpStatus.BAD_REQUEST);
-
+  // Debug: log body recibido (evitar log completo en prod)
+  this.logger.debug(`Create compra body: ${JSON.stringify({ idUsuario, detallesCount: compra?.detalles?.length })}`);
   const result = await this.comprasService.create(compra, idUsuario);
   return { success: true, data: result };
     } catch (error) {
