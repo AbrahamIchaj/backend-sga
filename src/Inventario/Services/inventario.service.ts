@@ -27,8 +27,6 @@ export class InventarioService {
   async findAll(query: ListInventarioQueryDto) {
     try {
       const { 
-        page = 1, 
-        limit = 10, 
         search, 
         codigoInsumo,
         nombreInsumo,
@@ -40,9 +38,13 @@ export class InventarioService {
         presentacion,
         proximosVencer,
         stockBajo
-      } = query;
+      } = query as any;
 
-      const skip = (page - 1) * limit;
+  // Normalizar filtros que pueden llegar como strings
+  const parsedCodigoInsumo = codigoInsumo !== undefined && codigoInsumo !== null ? Number((query as any).codigoInsumo) : undefined;
+  const parsedCodigoPresentacion = codigoPresentacion !== undefined && codigoPresentacion !== null ? Number((query as any).codigoPresentacion) : undefined;
+  const parsedCantidadMinima = cantidadMinima !== undefined && cantidadMinima !== null ? Number((query as any).cantidadMinima) : undefined;
+  const parsedProximosVencer = proximosVencer === 'true' || proximosVencer === true || proximosVencer === '1' || proximosVencer === 1;
       
       // Construir filtros dinámicos
       const where: any = {
@@ -57,11 +59,11 @@ export class InventarioService {
         ];
       }
 
-      if (codigoInsumo) where.codigoInsumo = codigoInsumo;
+  if (parsedCodigoInsumo && !Number.isNaN(parsedCodigoInsumo)) where.codigoInsumo = parsedCodigoInsumo;
       if (nombreInsumo) where.nombreInsumo = { contains: nombreInsumo, mode: 'insensitive' };
       if (lote) where.lote = { contains: lote, mode: 'insensitive' };
-      if (cantidadMinima !== undefined) where.cantidadDisponible = { gte: cantidadMinima };
-      if (codigoPresentacion) where.codigoPresentacion = codigoPresentacion;
+  if (parsedCantidadMinima !== undefined && !Number.isNaN(parsedCantidadMinima)) where.cantidadDisponible = { gte: parsedCantidadMinima };
+  if (parsedCodigoPresentacion && !Number.isNaN(parsedCodigoPresentacion)) where.codigoPresentacion = parsedCodigoPresentacion;
       if (presentacion) where.presentacion = { contains: presentacion, mode: 'insensitive' };
 
       // Filtro de fechas de vencimiento
@@ -72,7 +74,7 @@ export class InventarioService {
       }
 
       // Filtro para próximos a vencer (30 días)
-      if (proximosVencer) {
+      if (parsedProximosVencer) {
         const fechaLimite = new Date();
         fechaLimite.setDate(fechaLimite.getDate() + 30);
         where.fechaVencimiento = {
@@ -87,11 +89,10 @@ export class InventarioService {
         where.cantidadDisponible = { lt: 10 };
       }
 
+      // Sin paginación: devolver todos los registros que cumplan filtros (con límite razonable si quieres limitar)
       const [inventario, total] = await Promise.all([
         this.prisma.inventario.findMany({
           where,
-          skip,
-          take: limit,
           include: {
             IngresoCompras: {
               select: {
@@ -140,10 +141,7 @@ export class InventarioService {
       return {
         data,
         meta: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit)
+          total
         }
       };
 
