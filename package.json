@@ -21,6 +21,8 @@
     "@nestjs/platform-fastify": "11.1.6",
     "@prisma/client": "^6.15.0",
     "argon2": "^0.44.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
     "csv-parse": "^6.1.0",
     "dotenv": "^17.2.2",
     "fastify": "^5.5.0",
