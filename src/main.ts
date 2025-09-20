@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
 import { 
   FastifyAdapter,
   NestFastifyApplication,
@@ -17,6 +18,16 @@ async function bootstrap() {
 
   // Dirección de Prefijo global de las API's
   app.setGlobalPrefix('api/v1');
+
+  // Configurar ValidationPipe global
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+    transformOptions: {
+      enableImplicitConversion: true,
+    },
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  }));
 
 
   // Configurar CORS y otros middlewares

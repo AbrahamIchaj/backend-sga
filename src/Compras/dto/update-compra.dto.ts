@@ -1,28 +1,88 @@
+import { IsOptional, IsString, IsNumber, Min, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
+
 export class UpdateCompraDto {
+  @IsOptional()
+  @IsNumber()
   numeroFactura?: number;
+
+  @IsOptional()
+  @IsString()
   serieFactura?: string;
+
+  @IsOptional()
+  @IsString()
   tipoCompra?: string;
+
+  @IsOptional()
+  @IsDateString()
   fechaIngreso?: Date | string;
+
+  @IsOptional()
+  @IsString()
   proveedor?: string;
+
+  @IsOptional()
+  @IsNumber()
   ordenCompra?: number;
+
+  @IsOptional()
+  @IsNumber()
   programa?: number;
+
+  @IsOptional()
+  @IsNumber()
   numero1h?: number;
+
+  @IsOptional()
+  @IsNumber()
   noKardex?: number;
 }
 
 export class AnularCompraDto {
+  @IsString()
   motivo: string;
+
+  @IsNumber()
   idUsuario: number;
 }
 
 export class ListComprasQueryDto {
+  @IsOptional()
+  @IsString()
   proveedor?: string;
+
+  @IsOptional()
+  @IsDateString()
   desde?: string;
+
+  @IsOptional()
+  @IsDateString()
   hasta?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
   numeroFactura?: number;
+
+  @IsOptional()
+  @IsString()
   serieFactura?: string;
+
+  @IsOptional()
+  @IsString()
   tipoCompra?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
   page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
   limit?: number;
 }
 
