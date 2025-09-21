@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, ParseIntPipe, Query, Put, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, ParseIntPipe, Query, Put, Logger, HttpException, HttpStatus, Delete } from '@nestjs/common';
 import { ComprasService } from '../Services/compras.service';
 import { CreateCompraDto } from '../dto/create-compra.dto';
 import { ListComprasQueryDto, UpdateCompraDto, AnularCompraDto } from '../dto/update-compra.dto';
@@ -74,22 +74,29 @@ export class ComprasController {
     }
   }
 
-  @Post(':id/anular')
+  @Delete(':id/anular')
   async anular(@Param('id', ParseIntPipe) id: number, @Body() dto: AnularCompraDto) {
     try {
-      if (!dto?.motivo?.trim()) {
-        throw new HttpException('Motivo de anulación es requerido', HttpStatus.BAD_REQUEST);
-      }
       if (!dto?.idUsuario) {
         throw new HttpException('idUsuario es requerido', HttpStatus.BAD_REQUEST);
       }
 
-  const result = await this.comprasService.anular(id, dto.idUsuario, dto.motivo.trim());
-  return { success: true, data: result };
+  // motivo ahora es opcional: si no viene, lo normalizamos a cadena vacía
+  const motivo = dto?.motivo ? String(dto.motivo).trim() : '';
+
+      const result = await this.comprasService.anular(id, dto.idUsuario, motivo);
+      return { success: true, data: result };
     } catch (error) {
       this.logger.error(`Error al anular compra ${id}: ${error.message}`);
       if (error instanceof HttpException) throw error;
       throw new HttpException(`Error al anular compra: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  // Compatibilidad: aceptar también POST en /:id/anular si el frontend aún envía POST
+  @Post(':id/anular')
+  async anularPost(@Param('id', ParseIntPipe) id: number, @Body() dto: AnularCompraDto) {
+    // Reutilizamos la misma lógica del método DELETE
+    return this.anular(id, dto as any);
   }
 }

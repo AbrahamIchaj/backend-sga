@@ -40,8 +40,9 @@ export class UpdateCompraDto {
 }
 
 export class AnularCompraDto {
+  @IsOptional()
   @IsString()
-  motivo: string;
+  motivo?: string;
 
   @IsNumber()
   idUsuario: number;

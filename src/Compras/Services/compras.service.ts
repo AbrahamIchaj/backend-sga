@@ -213,7 +213,8 @@ export class ComprasService {
     const [data, total] = await this.prisma.$transaction([
       this.prisma.ingresoCompras.findMany({
         where,
-        orderBy: { fechaIngreso: 'desc' },
+        // Cambiado para ordenar desde la primera compra (más antigua) hasta la última (más reciente)
+        orderBy: { fechaIngreso: 'asc' },
         skip: (page - 1) * limit,
         take: limit,
         include: { IngresoComprasDetalle: true },
@@ -264,29 +265,47 @@ export class ComprasService {
       const compra = await tx.ingresoCompras.findUnique({
         where: { idIngresoCompras: id },
         include: {
+          IngresoComprasDetalle: { include: { IngresoComprasLotes: true } },
           Inventario: true,
         },
       });
       if (!compra) throw new NotFoundException(`Compra ${id} no encontrada`);
 
-      // Verificar que inventarios de esta compra no tengan despachos
       const idsInventario = compra.Inventario.map((i) => i.idInventario);
-      const countDespachos = await tx.despachos.count({ where: { idInventario: { in: idsInventario } } });
+
+      // No permitir anular si existen despachos asociados
+      const countDespachos = idsInventario.length > 0 ? await tx.despachos.count({ where: { idInventario: { in: idsInventario } } }) : 0;
       if (countDespachos > 0) {
         throw new BadRequestException('No se puede anular: existen despachos asociados a su inventario');
       }
 
-      // Poner cantidades a 0 en inventario
-      for (const inv of compra.Inventario) {
-        if (inv.cantidadDisponible > 0) {
-          await tx.inventario.update({
-            where: { idInventario: inv.idInventario },
-            data: { cantidadDisponible: 0 },
-          });
-        }
+      // No permitir anular si existen reajustes que referencien inventario
+      const countReajustes = idsInventario.length > 0 ? await tx.reajusteDetalle.count({ where: { idInventario: { in: idsInventario } } }) : 0;
+      if (countReajustes > 0) {
+        throw new BadRequestException('No se puede anular: existen reajustes que referencian el inventario de esta compra');
       }
 
-      return { message: `Compra ${id} anulada. Motivo: ${motivo}` };
+      // Borrar historial de inventario asociado a esta compra (opcional según política)
+      await tx.historialInventario.deleteMany({ where: { idIngresoCompras: id } });
+
+      // Borrar registros de inventario relacionados a esta compra
+      if (idsInventario.length > 0) {
+        await tx.inventario.deleteMany({ where: { idInventario: { in: idsInventario } } });
+      }
+
+      // Borrar lotes y detalles
+      const detalleIds = compra.IngresoComprasDetalle.map(d => d.idIngresoComprasDetalle);
+      if (detalleIds.length > 0) {
+        // Borrar lotes
+        await tx.ingresoComprasLotes.deleteMany({ where: { idIngresoComprasDetalle: { in: detalleIds } } });
+        // Borrar detalles
+        await tx.ingresoComprasDetalle.deleteMany({ where: { idIngresoCompras: id } });
+      }
+
+      // Finalmente borrar la cabecera de la compra
+      await tx.ingresoCompras.delete({ where: { idIngresoCompras: id } });
+
+      return { message: `Compra ${id} eliminada y registros relacionados removidos. Motivo: ${motivo}` };
     });
   }
 
