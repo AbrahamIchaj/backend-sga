@@ -115,10 +115,10 @@ export class InventarioService {
       const data: InventarioResponse[] = inventario.map(item => ({
         idInventario: item.idInventario,
         renglon: item.renglon,
-        codigoInsumo: item.codigoInsumo,
+        codigoInsumo: item.codigoInsumo ?? 0,
         nombreInsumo: item.nombreInsumo,
         caracteristicas: item.caracteristicas,
-        codigoPresentacion: item.codigoPresentacion,
+        codigoPresentacion: item.codigoPresentacion ?? 0,
         presentacion: item.presentacion,
         unidadMedida: item.unidadMedida,
         lote: item.lote,
@@ -130,11 +130,11 @@ export class InventarioService {
         precioUnitario: Number(item.precioUnitario),
         precioTotal: Number(item.precioTotal),
         ingresoCompras: {
-          idIngresoCompras: item.IngresoCompras.idIngresoCompras,
-          numeroFactura: item.IngresoCompras.numeroFactura,
-          serieFactura: item.IngresoCompras.serieFactura,
-          fechaIngreso: item.IngresoCompras.fechaIngreso,
-          proveedor: item.IngresoCompras.proveedor
+          idIngresoCompras: item.IngresoCompras?.idIngresoCompras ?? 0,
+          numeroFactura: item.IngresoCompras?.numeroFactura ?? 0,
+          serieFactura: item.IngresoCompras?.serieFactura ?? '',
+          fechaIngreso: item.IngresoCompras?.fechaIngreso ?? new Date(0),
+          proveedor: item.IngresoCompras?.proveedor ?? ''
         }
       }));
 
@@ -181,10 +181,10 @@ export class InventarioService {
       return {
         idInventario: inventario.idInventario,
         renglon: inventario.renglon,
-        codigoInsumo: inventario.codigoInsumo,
+        codigoInsumo: inventario.codigoInsumo ?? 0,
         nombreInsumo: inventario.nombreInsumo,
         caracteristicas: inventario.caracteristicas,
-        codigoPresentacion: inventario.codigoPresentacion,
+        codigoPresentacion: inventario.codigoPresentacion ?? 0,
         presentacion: inventario.presentacion,
         unidadMedida: inventario.unidadMedida,
         lote: inventario.lote,
@@ -196,11 +196,11 @@ export class InventarioService {
         precioUnitario: Number(inventario.precioUnitario),
         precioTotal: Number(inventario.precioTotal),
         ingresoCompras: {
-          idIngresoCompras: inventario.IngresoCompras.idIngresoCompras,
-          numeroFactura: inventario.IngresoCompras.numeroFactura,
-          serieFactura: inventario.IngresoCompras.serieFactura,
-          fechaIngreso: inventario.IngresoCompras.fechaIngreso,
-          proveedor: inventario.IngresoCompras.proveedor
+          idIngresoCompras: inventario.IngresoCompras?.idIngresoCompras ?? 0,
+          numeroFactura: inventario.IngresoCompras?.numeroFactura ?? 0,
+          serieFactura: inventario.IngresoCompras?.serieFactura ?? '',
+          fechaIngreso: inventario.IngresoCompras?.fechaIngreso ?? new Date(0),
+          proveedor: inventario.IngresoCompras?.proveedor ?? ''
         }
       };
 
@@ -241,11 +241,11 @@ export class InventarioService {
       const productosMap = new Map<number, ExistenciasResponse>();
 
       inventario.forEach(item => {
-        const key = item.codigoInsumo;
+        const key = item.codigoInsumo ?? 0;
         
         if (!productosMap.has(key)) {
           productosMap.set(key, {
-            codigoInsumo: item.codigoInsumo,
+            codigoInsumo: item.codigoInsumo ?? 0,
             nombreInsumo: item.nombreInsumo,
             caracteristicas: item.caracteristicas,
             presentacion: item.presentacion,
@@ -380,13 +380,13 @@ export class InventarioService {
           modulo: item.modulo,
           fechaMovimiento: item.fechaMovimiento,
           catalogoInsumos: {
-            codigoInsumo: item.CatalogoInsumos.codigoInsumo,
-            nombreInsumo: item.CatalogoInsumos.nombreInsumo,
-            presentacion: item.CatalogoInsumos.nombrePresentacion
+            codigoInsumo: item.CatalogoInsumos?.codigoInsumo ?? 0,
+            nombreInsumo: item.CatalogoInsumos?.nombreInsumo ?? '',
+            presentacion: item.CatalogoInsumos?.nombrePresentacion ?? ''
           },
           usuario: {
-            nombres: item.Usuarios.nombres,
-            apellidos: item.Usuarios.apellidos
+            nombres: item.Usuarios?.nombres ?? '',
+            apellidos: item.Usuarios?.apellidos ?? ''
           }
         };
 
@@ -561,7 +561,7 @@ export class InventarioService {
 
       return {
         productosVencidos: productosVencidos.map(item => ({
-          codigoInsumo: item.codigoInsumo,
+          codigoInsumo: item.codigoInsumo ?? 0,
           nombreInsumo: item.nombreInsumo,
           lote: item.lote,
           fechaVencimiento: item.fechaVencimiento!,
@@ -570,7 +570,7 @@ export class InventarioService {
         })),
         
         productosProximosVencer: productosProximosVencer.map(item => ({
-          codigoInsumo: item.codigoInsumo,
+          codigoInsumo: item.codigoInsumo ?? 0,
           nombreInsumo: item.nombreInsumo,
           lote: item.lote,
           fechaVencimiento: item.fechaVencimiento!,
@@ -579,7 +579,7 @@ export class InventarioService {
         })),
         
         productosStockBajo: productosStockBajo.map(item => ({
-          codigoInsumo: item.codigoInsumo,
+          codigoInsumo: item.codigoInsumo ?? 0,
           nombreInsumo: item.nombreInsumo,
           cantidadDisponible: item.cantidadDisponible,
           stockMinimo: 10 // Valor configurable
@@ -623,7 +623,7 @@ export class InventarioService {
         tipoMovimiento: item.tipoMovimiento,
         modulo: item.modulo,
         cantidad: item.cantidad,
-        producto: item.CatalogoInsumos.nombreInsumo,
+        producto: item.CatalogoInsumos?.nombreInsumo ?? '',
         lote: item.lote,
         usuario: `${item.Usuarios.nombres} ${item.Usuarios.apellidos}`
       }));
