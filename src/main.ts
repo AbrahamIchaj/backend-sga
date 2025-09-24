@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { BigIntToStringInterceptor } from './common/interceptors/bigint-to-string.interceptor';
 import { 
   FastifyAdapter,
   NestFastifyApplication,
@@ -28,7 +29,6 @@ async function bootstrap() {
     whitelist: true,
     forbidNonWhitelisted: true,
   }));
-
 
   // Configurar CORS y otros middlewares
   app.enableCors({

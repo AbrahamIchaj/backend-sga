@@ -3,8 +3,8 @@ import { Type } from 'class-transformer';
 
 export class UpdateCompraDto {
   @IsOptional()
-  @IsNumber()
-  numeroFactura?: number;
+  // numeroFactura puede venir como string o number (DB es BigInt). Se normaliza en el servicio.
+  numeroFactura?: string | number;
 
   @IsOptional()
   @IsString()
@@ -62,9 +62,9 @@ export class ListComprasQueryDto {
   hasta?: string;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  numeroFactura?: number;
+  @Type(() => String)
+  @IsString()
+  numeroFactura?: string;
 
   @IsOptional()
   @IsString()

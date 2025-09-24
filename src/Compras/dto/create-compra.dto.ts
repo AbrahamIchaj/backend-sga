@@ -74,7 +74,8 @@ export class CreateCompraDetalleDto {
 
 export class CreateCompraDto {
   @IsNumber()
-  numeroFactura: number;
+  // numeroFactura puede llegar como string grande desde el cliente, aceptamos string|number
+  numeroFactura: string | number;
 
   @IsString()
   serieFactura: string;

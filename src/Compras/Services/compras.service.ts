@@ -27,7 +27,7 @@ export class ComprasService {
       // 1) Crear cabecera de IngresoCompras
       const ingreso = await tx.ingresoCompras.create({
         data: {
-          numeroFactura: dto.numeroFactura,
+          numeroFactura: String(dto.numeroFactura),
           serieFactura: dto.serieFactura.trim(),
           tipoCompra: dto.tipoCompra.trim(),
           fechaIngreso: new Date(dto.fechaIngreso),
@@ -222,11 +222,11 @@ export class ComprasService {
       this.prisma.ingresoCompras.count({ where }),
     ]);
 
-    const resumen = data.map((c) => ({
+      const resumen = data.map((c) => ({
       idIngresoCompras: c.idIngresoCompras,
       fechaIngreso: c.fechaIngreso,
       proveedor: c.proveedor,
-      numeroFactura: c.numeroFactura,
+  numeroFactura: c.numeroFactura,
       serieFactura: c.serieFactura,
       tipoCompra: c.tipoCompra,
       ordenCompra: c.ordenCompra,
@@ -245,7 +245,7 @@ export class ComprasService {
     const compra = await this.prisma.ingresoCompras.update({
       where: { idIngresoCompras: id },
       data: {
-        ...(dto.numeroFactura !== undefined && { numeroFactura: dto.numeroFactura }),
+  ...(dto.numeroFactura !== undefined && { numeroFactura: String(dto.numeroFactura) }),
         ...(dto.serieFactura !== undefined && { serieFactura: dto.serieFactura }),
         ...(dto.tipoCompra !== undefined && { tipoCompra: dto.tipoCompra }),
         ...(dto.fechaIngreso !== undefined && { fechaIngreso: new Date(dto.fechaIngreso) }),

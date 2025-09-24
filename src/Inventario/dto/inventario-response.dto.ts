@@ -18,7 +18,7 @@ export interface InventarioResponse {
   // Información de la compra origen
   ingresoCompras: {
     idIngresoCompras: number;
-    numeroFactura: number;
+    numeroFactura: string;
     serieFactura: string;
     fechaIngreso: Date;
     proveedor: string;
@@ -65,7 +65,7 @@ export interface HistorialInventarioResponse {
   };
   // Información adicional según el tipo de movimiento
   referencia?: {
-    numeroFactura?: number;
+  numeroFactura?: string;
     serieFactura?: string;
     proveedor?: string;
     servicio?: string;
