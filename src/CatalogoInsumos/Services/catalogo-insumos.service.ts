@@ -118,39 +118,87 @@ export class CatalogoInsumosService {
               codigoPresentacion = cpNum;
             }
           }
+          // Normalizar valores para evitar NULLs si la tabla no los acepta
+          const caracteristicasVal = record['CARACTERÍSTICAS']?.trim() || '';
+          const nombrePresentacionVal = record['NOMBRE DE LA PRESENTACIÓN']?.trim() || '';
+          const unidadMedidaVal = record['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN']?.trim() || '';
+          const codigoPresentacionVal = codigoPresentacion ?? 0;
+          const renglonVal = renglon ?? 0;
           
           try {
-            // Usar SQL directo con los nombres de columnas correctos
-            const sqlSelect = `SELECT * FROM "CatalogoInsumos" WHERE "codigoInsumo" = $1`;
-            const existingRecords = await this.prisma.$queryRawUnsafe(sqlSelect, codigoInsumo) as any[];
-            
-            if (existingRecords && existingRecords.length > 0) {
-              // Se actualizaran los datos si ya existen
-              const sqlUpdate = `
-                UPDATE "CatalogoInsumos" SET 
-                "nombreInsumo" = $1,
-                "renglon" = $2,
-                "caracteristicas" = $3,
-                "nombrePresentacion" = $4,
-                "unidadMedida" = $5,
-                "codigoPresentacion" = $6
-                WHERE "codigoInsumo" = $7
+            const nombrePresentacion = record['NOMBRE DE LA PRESENTACIÓN']?.trim() || null;
+            const unidadMedida = record['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN']?.trim() || null;
+
+            let existingRecords: any[] = [];
+
+            if (codigoPresentacion) {
+              const sqlSelectByCP = `SELECT * FROM "CatalogoInsumos" WHERE "codigoInsumo" = $1 AND "codigoPresentacion" = $2`;
+              existingRecords = await this.prisma.$queryRawUnsafe(sqlSelectByCP, codigoInsumo, codigoPresentacion) as any[];
+            } else if (nombrePresentacion || unidadMedida) {
+              const sqlSelectByNames = `
+                SELECT * FROM "CatalogoInsumos"
+                WHERE "codigoInsumo" = $1
+                  AND COALESCE("nombrePresentacion", '') = $2
+                  AND COALESCE("unidadMedida", '') = $3
               `;
-              
-              await this.prisma.$executeRawUnsafe(
-                sqlUpdate,
-                nombreInsumo,
-                renglon,
-                record['CARACTERÍSTICAS']?.trim() || null,
-                record['NOMBRE DE LA PRESENTACIÓN']?.trim() || null,
-                record['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN']?.trim() || null,
-                codigoPresentacion,
-                codigoInsumo
-              );
-              
-              this.logger.debug(`Actualizado(s) ${existingRecords.length} insumo(s) con código: ${codigoInsumo}`);
+              existingRecords = await this.prisma.$queryRawUnsafe(sqlSelectByNames, codigoInsumo, nombrePresentacion || '', unidadMedida || '') as any[];
             } else {
-              // Crear un nuevo registro
+              // Sin datos de presentación: no podemos asegurar unicidad, insertamos de todas formas
+              existingRecords = [];
+            }
+
+            if (existingRecords && existingRecords.length > 0) {
+              // Actualizar solo el registro encontrado (el primero)
+              const target = existingRecords[0];
+              const idToUpdate = target.idCatalogoInsumos || target.id || null;
+
+              if (idToUpdate) {
+                const sqlUpdateById = `
+                  UPDATE "CatalogoInsumos" SET
+                    "nombreInsumo" = $1,
+                    "renglon" = $2,
+                    "caracteristicas" = $3,
+                    "nombrePresentacion" = $4,
+                    "unidadMedida" = $5,
+                    "codigoPresentacion" = $6
+                  WHERE "idCatalogoInsumos" = $7
+                `;
+
+                await this.prisma.$executeRawUnsafe(
+                  sqlUpdateById,
+                  nombreInsumo,
+                  renglonVal,
+                  caracteristicasVal,
+                  nombrePresentacionVal,
+                  unidadMedidaVal,
+                  codigoPresentacionVal,
+                  idToUpdate
+                );
+
+                this.logger.debug(`Actualizado insumo id=${idToUpdate} codigo=${codigoInsumo}`);
+              } else {
+                // Fallback: si por alguna razón no hay id, evitar actualizar todos y hacer insert
+                const sqlInsertFallback = `
+                  INSERT INTO "CatalogoInsumos" (
+                    "codigoInsumo", "nombreInsumo", "renglon", "caracteristicas", "nombrePresentacion", "unidadMedida", "codigoPresentacion"
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                `;
+
+                await this.prisma.$executeRawUnsafe(
+                  sqlInsertFallback,
+                  codigoInsumo,
+                  nombreInsumo,
+                  renglonVal,
+                  caracteristicasVal,
+                  nombrePresentacionVal,
+                  unidadMedidaVal,
+                  codigoPresentacionVal
+                );
+
+                this.logger.debug(`Creado (fallback) nuevo insumo con codigo: ${codigoInsumo}`);
+              }
+            } else {
+              // No existe presentación idéntica: insertar nueva fila
               const sqlInsert = `
                 INSERT INTO "CatalogoInsumos" (
                   "codigoInsumo", 
@@ -162,19 +210,19 @@ export class CatalogoInsumosService {
                   "codigoPresentacion"
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7)
               `;
-              
+
               await this.prisma.$executeRawUnsafe(
                 sqlInsert,
                 codigoInsumo,
                 nombreInsumo,
-                renglon,
-                record['CARACTERÍSTICAS']?.trim() || null,
-                record['NOMBRE DE LA PRESENTACIÓN']?.trim() || null,
-                record['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN']?.trim() || null,
-                codigoPresentacion
+                renglonVal,
+                caracteristicasVal,
+                nombrePresentacionVal,
+                unidadMedidaVal,
+                codigoPresentacionVal
               );
-              
-              this.logger.debug(`Creado nuevo insumo con código: ${codigoInsumo}`);
+
+              this.logger.debug(`Creado nuevo insumo con codigo: ${codigoInsumo}`);
             }
           } catch (dbError) {
             throw new Error(`Error de base de datos: ${dbError.message}`);
@@ -329,9 +377,9 @@ export class CatalogoInsumosService {
           // Usamos una forma alternativa de consulta SQL directa para evitar problemas con las comillas
           let sql = `SELECT COUNT(*) as total FROM "${nombre}"`;
           const resultado = await this.prisma.$queryRawUnsafe(sql) as Array<{total: number}>;
-          resultadosPruebas[nombre] = `✅ OK (${resultado[0]?.total || 0} registros)`;
+          resultadosPruebas[nombre] = `Realizado (${resultado[0]?.total || 0} registros)`;
         } catch (error) {
-          resultadosPruebas[nombre] = `❌ Error: ${error instanceof Error ? error.message : 'Desconocido'}`;
+          resultadosPruebas[nombre] = `Error: ${error instanceof Error ? error.message : 'Desconocido'}`;
         }
       }
       
