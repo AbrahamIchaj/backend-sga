@@ -4,7 +4,7 @@
 /build
 .readme.md
 /BaseDatos
-/prisma
+/prisma/migrations/
 /uploads
 .env.example
 
