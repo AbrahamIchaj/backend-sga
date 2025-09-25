@@ -17,12 +17,12 @@ export interface InventarioResponse {
   precioTotal: number;
   // Información de la compra origen
   ingresoCompras: {
-    idIngresoCompras: number;
-    numeroFactura: string;
-    serieFactura: string;
-    fechaIngreso: Date;
-    proveedor: string;
-  };
+    idIngresoCompras: number | null;
+    numeroFactura: string | null;
+    serieFactura: string | null;
+    fechaIngreso: Date | null;
+    proveedor: string | null;
+  } | null;
 }
 
 export interface ExistenciasResponse {
@@ -47,17 +47,17 @@ export interface ExistenciasResponse {
 export interface HistorialInventarioResponse {
   idHistorial: number;
   lote: string | null;
-  fechaVencimiento: Date;
+  fechaVencimiento: Date | null;
   cantidad: number;
   tipoMovimiento: string;
   modulo: string;
   fechaMovimiento: Date;
   // Información del producto
-  catalogoInsumos: {
-    codigoInsumo: number;
-    nombreInsumo: string;
-    presentacion: string;
-  };
+  catalogoInsumos?: {
+    codigoInsumo: number | null;
+    nombreInsumo: string | null;
+    presentacion: string | null;
+  } | null;
   // Información del usuario
   usuario: {
     nombres: string;
@@ -65,11 +65,11 @@ export interface HistorialInventarioResponse {
   };
   // Información adicional según el tipo de movimiento
   referencia?: {
-  numeroFactura?: string;
-    serieFactura?: string;
-    proveedor?: string;
-    servicio?: string;
-    referenciaDocumento?: string;
+    numeroFactura?: string | null;
+    serieFactura?: string | null;
+    proveedor?: string | null;
+    servicio?: string | null;
+    referenciaDocumento?: string | null;
   };
 }
 

@@ -112,31 +112,36 @@ export class InventarioService {
         this.prisma.inventario.count({ where })
       ]);
 
-      const data: InventarioResponse[] = inventario.map(item => ({
-        idInventario: item.idInventario,
-        renglon: item.renglon,
-        codigoInsumo: item.codigoInsumo,
-        nombreInsumo: item.nombreInsumo,
-        caracteristicas: item.caracteristicas,
-        codigoPresentacion: item.codigoPresentacion,
-        presentacion: item.presentacion,
-        unidadMedida: item.unidadMedida,
-        lote: item.lote,
-        cartaCompromiso: item.cartaCompromiso ?? false,
-        mesesDevolucion: item.mesesDevolucion ?? null,
-        observacionesDevolucion: item.observacionesDevolucion ?? null,
-        fechaVencimiento: item.fechaVencimiento,
-        cantidadDisponible: item.cantidadDisponible,
-        precioUnitario: Number(item.precioUnitario),
-        precioTotal: Number(item.precioTotal),
-        ingresoCompras: {
-          idIngresoCompras: item.IngresoCompras.idIngresoCompras,
-          numeroFactura: item.IngresoCompras.numeroFactura,
-          serieFactura: item.IngresoCompras.serieFactura,
-          fechaIngreso: item.IngresoCompras.fechaIngreso,
-          proveedor: item.IngresoCompras.proveedor
-        }
-      }));
+      const data: InventarioResponse[] = inventario.map(item => {
+        const ingreso = item.IngresoCompras;
+        return {
+          idInventario: item.idInventario,
+          renglon: item.renglon,
+          codigoInsumo: item.codigoInsumo,
+          nombreInsumo: item.nombreInsumo,
+          caracteristicas: item.caracteristicas,
+          codigoPresentacion: item.codigoPresentacion,
+          presentacion: item.presentacion,
+          unidadMedida: item.unidadMedida,
+          lote: item.lote,
+          cartaCompromiso: item.cartaCompromiso ?? false,
+          mesesDevolucion: item.mesesDevolucion ?? null,
+          observacionesDevolucion: item.observacionesDevolucion ?? null,
+          fechaVencimiento: item.fechaVencimiento,
+          cantidadDisponible: item.cantidadDisponible,
+          precioUnitario: Number(item.precioUnitario),
+          precioTotal: Number(item.precioTotal),
+          ingresoCompras: ingreso
+            ? {
+                idIngresoCompras: ingreso.idIngresoCompras,
+                numeroFactura: ingreso.numeroFactura,
+                serieFactura: ingreso.serieFactura,
+                fechaIngreso: ingreso.fechaIngreso,
+                proveedor: ingreso.proveedor
+              }
+            : null
+        };
+      });
 
       return {
         data,
@@ -178,6 +183,7 @@ export class InventarioService {
         throw new HttpException(`Item de inventario con ID ${id} no encontrado`, HttpStatus.NOT_FOUND);
       }
 
+      const ingreso = inventario.IngresoCompras;
       return {
         idInventario: inventario.idInventario,
         renglon: inventario.renglon,
@@ -195,13 +201,15 @@ export class InventarioService {
         cantidadDisponible: inventario.cantidadDisponible,
         precioUnitario: Number(inventario.precioUnitario),
         precioTotal: Number(inventario.precioTotal),
-        ingresoCompras: {
-          idIngresoCompras: inventario.IngresoCompras.idIngresoCompras,
-          numeroFactura: inventario.IngresoCompras.numeroFactura,
-          serieFactura: inventario.IngresoCompras.serieFactura,
-          fechaIngreso: inventario.IngresoCompras.fechaIngreso,
-          proveedor: inventario.IngresoCompras.proveedor
-        }
+        ingresoCompras: ingreso
+          ? {
+              idIngresoCompras: ingreso.idIngresoCompras,
+              numeroFactura: ingreso.numeroFactura,
+              serieFactura: ingreso.serieFactura,
+              fechaIngreso: ingreso.fechaIngreso,
+              proveedor: ingreso.proveedor
+            }
+          : null
       };
 
     } catch (error) {
@@ -307,22 +315,21 @@ export class InventarioService {
         idUsuario
       } = query;
 
-      const skip = (page - 1) * limit;
-
       const where: any = {};
 
-      if (idInventario) where.idInventario = idInventario;
-      if (codigoInsumo) where.CatalogoInsumos = { codigoInsumo };
+      if (idInventario) where.idInventario = Number(idInventario);
+      if (codigoInsumo) where.codigoInsumo = Number(codigoInsumo);
       if (lote) where.lote = { contains: lote, mode: 'insensitive' };
       if (tipoMovimiento) where.tipoMovimiento = tipoMovimiento;
       if (modulo) where.modulo = modulo;
-      if (idUsuario) where.idUsuario = idUsuario;
-
       if (fechaDesde || fechaHasta) {
         where.fechaMovimiento = {};
         if (fechaDesde) where.fechaMovimiento.gte = new Date(fechaDesde);
         if (fechaHasta) where.fechaMovimiento.lte = new Date(fechaHasta);
       }
+      if (idUsuario) where.idUsuario = Number(idUsuario);
+
+      const skip = (page - 1) * limit;
 
       const [historial, total] = await Promise.all([
         this.prisma.historialInventario.findMany({
@@ -374,16 +381,18 @@ export class InventarioService {
         const response: HistorialInventarioResponse = {
           idHistorial: item.idHistorial,
           lote: item.lote,
-          fechaVencimiento: item.fechaVencimiento,
+          fechaVencimiento: item.fechaVencimiento ?? null,
           cantidad: item.cantidad,
           tipoMovimiento: item.tipoMovimiento,
           modulo: item.modulo,
           fechaMovimiento: item.fechaMovimiento,
-          catalogoInsumos: {
-            codigoInsumo: item.CatalogoInsumos.codigoInsumo,
-            nombreInsumo: item.CatalogoInsumos.nombreInsumo,
-            presentacion: item.CatalogoInsumos.nombrePresentacion
-          },
+          catalogoInsumos: item.CatalogoInsumos
+            ? {
+                codigoInsumo: item.CatalogoInsumos.codigoInsumo,
+                nombreInsumo: item.CatalogoInsumos.nombreInsumo,
+                presentacion: item.CatalogoInsumos.nombrePresentacion
+              }
+            : null,
           usuario: {
             nombres: item.Usuarios.nombres,
             apellidos: item.Usuarios.apellidos
@@ -623,7 +632,7 @@ export class InventarioService {
         tipoMovimiento: item.tipoMovimiento,
         modulo: item.modulo,
         cantidad: item.cantidad,
-        producto: item.CatalogoInsumos.nombreInsumo,
+        producto: item.CatalogoInsumos?.nombreInsumo ?? 'SIN CATÁLOGO',
         lote: item.lote,
         usuario: `${item.Usuarios.nombres} ${item.Usuarios.apellidos}`
       }));

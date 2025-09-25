@@ -8,6 +8,7 @@ import { RolesModule } from './Roles/Module/roles.module';
 import { UsuariosModule } from './Usuarios/Module/usuarios.module';
 import { ComprasModule } from './Compras/Module/compras.module';
 import { InventarioModule } from './Inventario/Module/inventario.module';
+import { ReajustesModule } from './Reajustes/Module/reajustes.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { InventarioModule } from './Inventario/Module/inventario.module';
     UsuariosModule,
     ComprasModule,
     InventarioModule,
+    ReajustesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

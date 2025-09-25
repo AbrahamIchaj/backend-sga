@@ -75,8 +75,8 @@ model IngresoComprasLotes {
 
 model Inventario {
   idInventario            Int                   @id @default(autoincrement())
-  idIngresoCompras        Int
-  idIngresoComprasLotes   Int
+  idIngresoCompras        Int?
+  idIngresoComprasLotes   Int?
   renglon                 Int
   codigoInsumo            Int
   nombreInsumo            String                @db.Text
@@ -92,8 +92,8 @@ model Inventario {
   cantidadDisponible      Int
   precioUnitario          Decimal               @db.Decimal(10, 3)
   precioTotal             Decimal               @db.Decimal(10, 3)
-  IngresoCompras          IngresoCompras        @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
-  IngresoComprasLotes     IngresoComprasLotes   @relation(fields: [idIngresoComprasLotes], references: [idIngresoComprasLotes])
+  IngresoCompras          IngresoCompras?       @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
+  IngresoComprasLotes     IngresoComprasLotes?  @relation(fields: [idIngresoComprasLotes], references: [idIngresoComprasLotes])
   ReajusteDetalle         ReajusteDetalle[]
   HistorialInventario     HistorialInventario[]
   Despachos               Despachos[]
@@ -200,39 +200,45 @@ model Reajustes {
 }
 
 model ReajusteDetalle {
-  idReajusteDetalle Int             @id @default(autoincrement())
-  idReajuste        Int
-  idInventario      Int
-  idCatalogoInsumos Int
-  lote              String?         @db.VarChar(50)
-  fechaVencimiento  DateTime?
-  presentacion      String?         @db.VarChar(155)
-  cantidad          Int
-  Reajustes         Reajustes       @relation(fields: [idReajuste], references: [idReajuste])
-  Inventario        Inventario      @relation(fields: [idInventario], references: [idInventario])
-  CatalogoInsumos   CatalogoInsumos @relation(fields: [idCatalogoInsumos], references: [idCatalogoInsumos])
+  idReajusteDetalle  Int              @id @default(autoincrement())
+  idReajuste         Int
+  idInventario       Int?
+  idCatalogoInsumos  Int?
+  codigoInsumo       Int?
+  codigoPresentacion Int?
+  nombreInsumo       String           @db.Text
+  caracteristicas    String           @db.Text
+  presentacion       String?          @db.Text
+  unidadMedida       String?          @db.Text
+  lote               String?          @db.VarChar(50)
+  fechaVencimiento   DateTime?
+  cantidad           Int
+  observaciones      String?          @db.Text
+  Reajustes          Reajustes        @relation(fields: [idReajuste], references: [idReajuste])
+  Inventario         Inventario?      @relation(fields: [idInventario], references: [idInventario])
+  CatalogoInsumos    CatalogoInsumos? @relation(fields: [idCatalogoInsumos], references: [idCatalogoInsumos])
 }
 
 model HistorialInventario {
-  idHistorial       Int             @id @default(autoincrement())
-  idCatalogoInsumos Int
+  idHistorial       Int              @id @default(autoincrement())
+  idCatalogoInsumos Int?
   idInventario      Int
-  idIngresoCompras  Int
-  idDespacho        Int
-  idReajuste        Int
-  lote              String?         @db.VarChar(50)
-  fechaVencimiento  DateTime
+  idIngresoCompras  Int?
+  idDespacho        Int?
+  idReajuste        Int?
+  lote              String?          @db.VarChar(50)
+  fechaVencimiento  DateTime?
   cantidad          Int
-  tipoMovimiento    String          @db.VarChar(20)
-  modulo            String          @db.VarChar(50)
-  fechaMovimiento   DateTime        @default(now())
+  tipoMovimiento    String           @db.VarChar(20)
+  modulo            String           @db.VarChar(50)
+  fechaMovimiento   DateTime         @default(now())
   idUsuario         Int
-  CatalogoInsumos   CatalogoInsumos @relation(fields: [idCatalogoInsumos], references: [idCatalogoInsumos])
-  Inventario        Inventario      @relation(fields: [idInventario], references: [idInventario])
-  IngresoCompras    IngresoCompras  @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
-  Despachos         Despachos       @relation(fields: [idDespacho], references: [idDespacho])
-  Reajustes         Reajustes       @relation(fields: [idReajuste], references: [idReajuste])
-  Usuarios          Usuarios        @relation(fields: [idUsuario], references: [idUsuario])
+  CatalogoInsumos   CatalogoInsumos? @relation(fields: [idCatalogoInsumos], references: [idCatalogoInsumos])
+  Inventario        Inventario       @relation(fields: [idInventario], references: [idInventario])
+  IngresoCompras    IngresoCompras?  @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
+  Despachos         Despachos?       @relation(fields: [idDespacho], references: [idDespacho])
+  Reajustes         Reajustes?       @relation(fields: [idReajuste], references: [idReajuste])
+  Usuarios          Usuarios         @relation(fields: [idUsuario], references: [idUsuario])
 }
 
 model Abastecimientos {
