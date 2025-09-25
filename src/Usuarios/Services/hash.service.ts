@@ -7,19 +7,18 @@ export class HashService {
 
   private readonly argonConfig = {
     type: argon2.argon2id,
-    
+
     // Configuración optimizada para servidores con recursos limitados
     memoryCost: 2 ** 16, // 64 MB (65536 KB)
-    timeCost: 3,  
+    timeCost: 3,
     parallelism: 1,
     hashLength: 32,
   };
-
-
+  // Hashea una contraseña usando Argon2id
   async hashPassword(password: string): Promise<string> {
     try {
       const startTime = Date.now();
-      
+
       // Validar entrada
       if (!password || typeof password !== 'string') {
         throw new Error('La contraseña debe ser una cadena no vacía');
@@ -30,12 +29,14 @@ export class HashService {
       }
 
       if (password.length > 128) {
-        throw new Error('La contraseña es demasiado larga (máx 128 caracteres)');
+        throw new Error(
+          'La contraseña es demasiado larga (máx 128 caracteres)',
+        );
       }
 
       // Hashear con Argon2id
       const hash = await argon2.hash(password, this.argonConfig);
-      
+
       const duration = Date.now() - startTime;
       this.logger.log(`Contraseña hasheada exitosamente en ${duration}ms`);
 
@@ -46,12 +47,11 @@ export class HashService {
     }
   }
 
-
   // Verifica si una contraseña coincide con su hash
   async verifyPassword(password: string, hash: string): Promise<boolean> {
     try {
       const startTime = Date.now();
-      
+
       // Validar entradas
       if (!password || !hash) {
         return false;
@@ -62,9 +62,11 @@ export class HashService {
       }
 
       const isValid = await argon2.verify(hash, password);
-      
+
       const duration = Date.now() - startTime;
-      this.logger.log(`Verificación de contraseña completada en ${duration}ms: ${isValid ? 'VÁLIDA' : 'INVALIDA'}`);
+      this.logger.log(
+        `Verificación de contraseña completada en ${duration}ms: ${isValid ? 'VÁLIDA' : 'INVALIDA'}`,
+      );
 
       return isValid;
     } catch (error) {
@@ -73,35 +75,41 @@ export class HashService {
     }
   }
 
-//Generar contraseña segura temporal
+  //Generar contraseña segura temporal
   generateTemporaryPassword(length: number = 12): string {
-    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    const charset =
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
     let password = '';
-    
+
     // Asegurar al menos un carácter de cada tipo
     const lowercase = 'abcdefghijklmnopqrstuvwxyz';
     const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
     const symbols = '!@#$%^&*';
-    
+
     password += lowercase[Math.floor(Math.random() * lowercase.length)];
     password += uppercase[Math.floor(Math.random() * uppercase.length)];
     password += numbers[Math.floor(Math.random() * numbers.length)];
     password += symbols[Math.floor(Math.random() * symbols.length)];
-    
+
     // Completar la longitud restante
     for (let i = password.length; i < length; i++) {
       password += charset[Math.floor(Math.random() * charset.length)];
     }
-    
+
     // Mezclar los caracteres
-    const temporaryPassword = password.split('').sort(() => Math.random() - 0.5).join('');
-    
-    this.logger.warn(`⚠️ CONTRASEÑA TEMPORAL GENERADA - Esta información es sensible`);
+    const temporaryPassword = password
+      .split('')
+      .sort(() => Math.random() - 0.5)
+      .join('');
+
+    this.logger.warn(
+      `⚠️ CONTRASEÑA TEMPORAL GENERADA - Esta información es sensible`,
+    );
     return temporaryPassword;
   }
 
-//Calculo de fecha de expiración por defecto 24 horas
+  //Calculo de fecha de expiración por defecto 24 horas
   getTemporaryPasswordExpiration(): Date {
     const expiration = new Date();
     expiration.setHours(expiration.getHours() + 24);
@@ -126,7 +134,7 @@ export class HashService {
       return {
         isValid: false,
         score: 0,
-        feedback: ['La contraseña es requerida']
+        feedback: ['La contraseña es requerida'],
       };
     }
 
@@ -178,11 +186,11 @@ export class HashService {
     return {
       isValid: score >= 80,
       score: Math.min(score, 100),
-      feedback: feedback.length > 0 ? feedback : ['Strong password']
+      feedback: feedback.length > 0 ? feedback : ['Strong password'],
     };
   }
 
-//Mostrar info de config de argon2
+  //Mostrar info de config de argon2
   getHashInfo(): object {
     return {
       algorithm: 'Argon2id',
@@ -191,7 +199,7 @@ export class HashService {
       parallelism: this.argonConfig.parallelism,
       hashLength: this.argonConfig.hashLength,
       estimatedMemoryUsage: `~${(this.argonConfig.memoryCost / 1024).toFixed(1)} MB por hash`,
-      securityLevel: 'High (optimized for limited resources)'
+      securityLevel: 'High (optimized for limited resources)',
     };
   }
 }

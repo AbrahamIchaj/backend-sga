@@ -9,7 +9,7 @@ import {
   MaxLength,
   Min,
   ValidateNested,
-  IsBoolean
+  IsBoolean,
 } from 'class-validator';
 
 export class CreateReajusteDetalleDto {

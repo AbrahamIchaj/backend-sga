@@ -1,9 +1,9 @@
-import { 
-  Controller, 
-  Post, 
-  Body, 
-  Param, 
-  Put, 
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  Put,
   Get,
   Query,
   ParseIntPipe,
@@ -13,7 +13,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { UsuariosService } from '../Services/usuarios.service';
-import { AdminChangePasswordDto, GenerateTemporaryPasswordDto } from '../dto/password.dto';
+import {
+  AdminChangePasswordDto,
+  GenerateTemporaryPasswordDto,
+} from '../dto/password.dto';
 
 @Controller('usuarios/auth')
 export class GestionContrasenasController {
@@ -34,7 +37,7 @@ export class GestionContrasenasController {
       };
 
       const resultado = await this.usuariosService.adminChangePassword(fullDto);
-      
+
       return {
         success: resultado.success,
         message: resultado.message,
@@ -45,11 +48,12 @@ export class GestionContrasenasController {
         },
       };
     } catch (error) {
-      this.logger.error(`Error al cambiar contraseña del usuario ${usuarioId}: ${error.message}`);
+      this.logger.error(
+        `Error al cambiar contraseña del usuario ${usuarioId}: ${error.message}`,
+      );
       throw error;
     }
   }
-
 
   // VERIFICACIÓN DE CREDENCIALES
   @Post('verify')
@@ -75,7 +79,7 @@ export class GestionContrasenasController {
           temporal: {
             esTemporal: resultado.esTemporal,
             expirada: resultado.debeExpirar,
-          }
+          },
         };
       }
 
@@ -86,19 +90,20 @@ export class GestionContrasenasController {
         temporal: {
           esTemporal: resultado.esTemporal,
           debeExpirar: resultado.debeExpirar,
-          instructions: resultado.esTemporal ? [
-            'Estás usando una contraseña temporal',
-            'Debes cambiar tu contraseña inmediatamente',
-            'La contraseña temporal expira en 24 horas'
-          ] : undefined,
-        }
+          instructions: resultado.esTemporal
+            ? [
+                'Estás usando una contraseña temporal',
+                'Debes cambiar tu contraseña inmediatamente',
+                'La contraseña temporal expira en 24 horas',
+              ]
+            : undefined,
+        },
       };
     } catch (error) {
       this.logger.error(`Error al verificar credenciales: ${error.message}`);
       throw error;
     }
   }
-
 
   // CAMBIO DE CONTRASEÑA POR USUARIO
 
@@ -116,7 +121,7 @@ export class GestionContrasenasController {
 
       const verificacion = await this.usuariosService.verifyCredentials(
         usuario.correo,
-        body.currentPassword
+        body.currentPassword,
       );
 
       if (!verificacion.usuario) {
@@ -127,9 +132,9 @@ export class GestionContrasenasController {
       if (verificacion.esTemporal) {
         const resultado = await this.usuariosService.cambiarPasswordTemporal(
           usuarioId,
-          body.newPassword
+          body.newPassword,
         );
-        
+
         return {
           success: resultado.success,
           message: 'Contraseña temporal cambiada exitosamente',
@@ -148,8 +153,9 @@ export class GestionContrasenasController {
           adminEmail: usuario.correo, // Usuario se cambia su propia contraseña
         };
 
-        const resultado = await this.usuariosService.adminChangePassword(adminChangeDto);
-        
+        const resultado =
+          await this.usuariosService.adminChangePassword(adminChangeDto);
+
         return {
           success: resultado.success,
           message: 'Contraseña actualizada exitosamente',
@@ -161,11 +167,12 @@ export class GestionContrasenasController {
         };
       }
     } catch (error) {
-      this.logger.error(`Error al cambiar contraseña del usuario ${usuarioId}: ${error.message}`);
+      this.logger.error(
+        `Error al cambiar contraseña del usuario ${usuarioId}: ${error.message}`,
+      );
       throw error;
     }
   }
-
 
   // GESTIÓN DE CONTRASEÑAS TEMPORALES
   @Post(':id/password/generate')
@@ -182,8 +189,9 @@ export class GestionContrasenasController {
         ip: body.ip,
       };
 
-      const resultado = await this.usuariosService.adminChangePassword(adminChangeDto);
-      
+      const resultado =
+        await this.usuariosService.adminChangePassword(adminChangeDto);
+
       return {
         success: true,
         message: 'Contraseña temporal generada exitosamente',
@@ -194,17 +202,19 @@ export class GestionContrasenasController {
             'Guarda esta contraseña temporal de forma segura',
             'Válida por 24 horas únicamente',
             'El usuario debe cambiarla en su primer inicio de sesión',
-            'Esta contraseña temporal no se mostrará nuevamente'
+            'Esta contraseña temporal no se mostrará nuevamente',
           ],
           security: {
             expiresIn: '24 horas',
             mustChangeOnFirstLogin: true,
             oneTimeView: true,
-          }
+          },
         },
       };
     } catch (error) {
-      this.logger.error(`Error al generar contraseña temporal para usuario ${usuarioId}: ${error.message}`);
+      this.logger.error(
+        `Error al generar contraseña temporal para usuario ${usuarioId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -218,9 +228,9 @@ export class GestionContrasenasController {
     try {
       const resultado = await this.usuariosService.cambiarPasswordTemporal(
         usuarioId,
-        body.nuevaPassword
+        body.nuevaPassword,
       );
-      
+
       return {
         success: resultado.success,
         message: resultado.mensaje,
@@ -230,28 +240,29 @@ export class GestionContrasenasController {
           instructions: [
             'Contraseña cambiada exitosamente',
             'Ya no es temporal',
-            'Puedes usar esta contraseña para futuros inicios de sesión'
-          ]
+            'Puedes usar esta contraseña para futuros inicios de sesión',
+          ],
         },
       };
     } catch (error) {
-      this.logger.error(`Error al cambiar contraseña temporal del usuario ${usuarioId}: ${error.message}`);
+      this.logger.error(
+        `Error al cambiar contraseña temporal del usuario ${usuarioId}: ${error.message}`,
+      );
       throw error;
     }
   }
 
   // ADMIN: OBTENER CONTRASEÑAS TEMPORALES GENERADAS
   @Get('admin/temporary-passwords')
-  async getAdminTemporaryPasswords(
-    @Query('adminEmail') adminEmail: string,
-  ) {
+  async getAdminTemporaryPasswords(@Query('adminEmail') adminEmail: string) {
     try {
       if (!adminEmail) {
         throw new BadRequestException('Se requiere adminEmail como parámetro');
       }
 
-      const passwords = await this.usuariosService.obtenerPasswordsTemporalesAdmin(adminEmail);
-      
+      const passwords =
+        await this.usuariosService.obtenerPasswordsTemporalesAdmin(adminEmail);
+
       return {
         success: true,
         message: `Se encontraron ${passwords.length} contraseñas temporales generadas por ${adminEmail}`,
@@ -260,10 +271,12 @@ export class GestionContrasenasController {
           warning: 'Esta información es altamente sensible',
           adminResponsible: adminEmail,
           generatedAt: new Date().toISOString(),
-        }
+        },
       };
     } catch (error) {
-      this.logger.error(`Error al obtener contraseñas temporales: ${error.message}`);
+      this.logger.error(
+        `Error al obtener contraseñas temporales: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -273,7 +286,7 @@ export class GestionContrasenasController {
   async cleanupExpiredPasswords() {
     try {
       const resultado = await this.usuariosService.limpiarPasswordsExpiradas();
-      
+
       return {
         success: true,
         message: `Limpieza completada. ${resultado.eliminadas} contraseñas temporales expiradas fueron marcadas como usadas`,
@@ -283,7 +296,9 @@ export class GestionContrasenasController {
         },
       };
     } catch (error) {
-      this.logger.error(`Error en limpieza de contraseñas temporales: ${error.message}`);
+      this.logger.error(
+        `Error en limpieza de contraseñas temporales: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -293,18 +308,22 @@ export class GestionContrasenasController {
   async getTemporaryPasswordsStats(@Query('adminEmail') adminEmail?: string) {
     try {
       if (!adminEmail) {
-        throw new BadRequestException('Se requiere adminEmail para obtener estadísticas');
+        throw new BadRequestException(
+          'Se requiere adminEmail para obtener estadísticas',
+        );
       }
 
-      const passwords = await this.usuariosService.obtenerPasswordsTemporalesAdmin(adminEmail);
-      
+      const passwords =
+        await this.usuariosService.obtenerPasswordsTemporalesAdmin(adminEmail);
+
       const stats = {
         totalGeneradas: passwords.length,
-        activas: passwords.filter(p => !p.usado && !p.expirada).length,
-        expiradas: passwords.filter(p => p.expirada).length,
-        usadas: passwords.filter(p => p.usado).length,
+        activas: passwords.filter((p) => !p.usado && !p.expirada).length,
+        expiradas: passwords.filter((p) => p.expirada).length,
+        usadas: passwords.filter((p) => p.usado).length,
         adminEmail,
-        ultimaGeneracion: passwords.length > 0 ? passwords[0].fechaGeneracion : null,
+        ultimaGeneracion:
+          passwords.length > 0 ? passwords[0].fechaGeneracion : null,
       };
 
       return {
@@ -314,7 +333,9 @@ export class GestionContrasenasController {
         generatedAt: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error(`Error al obtener estadísticas de contraseñas temporales: ${error.message}`);
+      this.logger.error(
+        `Error al obtener estadísticas de contraseñas temporales: ${error.message}`,
+      );
       throw error;
     }
   }

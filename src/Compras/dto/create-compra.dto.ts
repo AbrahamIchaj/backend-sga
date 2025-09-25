@@ -1,4 +1,13 @@
-import { IsNumber, IsString, IsOptional, IsDateString, IsArray, ValidateNested, IsBoolean, Min } from 'class-validator';
+import {
+  IsNumber,
+  IsString,
+  IsOptional,
+  IsDateString,
+  IsArray,
+  ValidateNested,
+  IsBoolean,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateCompraLoteDto {

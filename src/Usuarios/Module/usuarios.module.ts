@@ -13,11 +13,11 @@ import { PrismaModule } from '../../prisma/prisma.module';
 @Module({
   imports: [PrismaModule],
   controllers: [
-    UsuariosController,                     
-    UsuariosReportesController,             
-    GestionContrasenasController,            
+    UsuariosController,
+    UsuariosReportesController,
+    GestionContrasenasController,
     ActivarDesactivarUsuariosController,
-    AuthController,    
+    AuthController,
   ],
   providers: [
     UsuariosService,
@@ -25,11 +25,6 @@ import { PrismaModule } from '../../prisma/prisma.module';
     PasswordTemporalService,
     AuthService,
   ],
-  exports: [
-    UsuariosService, 
-    HashService,    
-    PasswordTemporalService,
-    AuthService,
-  ],
+  exports: [UsuariosService, HashService, PasswordTemporalService, AuthService],
 })
 export class UsuariosModule {}

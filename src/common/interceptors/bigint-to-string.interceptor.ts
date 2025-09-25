@@ -1,4 +1,9 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
@@ -19,6 +24,6 @@ function convertBigIntToString(obj: any): any {
 @Injectable()
 export class BigIntToStringInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    return next.handle().pipe(map(data => convertBigIntToString(data)));
+    return next.handle().pipe(map((data) => convertBigIntToString(data)));
   }
 }

@@ -8,7 +8,7 @@ import {
   ParseIntPipe,
   Logger,
   HttpException,
-  HttpStatus
+  HttpStatus,
 } from '@nestjs/common';
 import { ReajustesService } from '../Services/reajustes.service';
 import { CreateReajusteDto } from '../dto/create-reajuste.dto';
@@ -21,11 +21,16 @@ export class ReajustesController {
   constructor(private readonly reajustesService: ReajustesService) {}
 
   @Post()
-  async create(@Body() body: { reajuste: CreateReajusteDto; idUsuario: number }) {
+  async create(
+    @Body() body: { reajuste: CreateReajusteDto; idUsuario: number },
+  ) {
     try {
       const { reajuste, idUsuario } = body;
       if (!idUsuario) {
-        throw new HttpException('idUsuario es requerido', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'idUsuario es requerido',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const data = await this.reajustesService.create(reajuste, idUsuario);
@@ -33,7 +38,10 @@ export class ReajustesController {
     } catch (error) {
       this.logger.error(`Error al crear reajuste: ${error.message}`);
       if (error instanceof HttpException) throw error;
-      throw new HttpException(`Error al crear reajuste: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        `Error al crear reajuste: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -44,7 +52,10 @@ export class ReajustesController {
       return { success: true, ...data };
     } catch (error) {
       this.logger.error(`Error al listar reajustes: ${error.message}`);
-      throw new HttpException(`Error al listar reajustes: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        `Error al listar reajustes: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -56,7 +67,10 @@ export class ReajustesController {
     } catch (error) {
       this.logger.error(`Error al obtener reajuste ${id}: ${error.message}`);
       if (error instanceof HttpException) throw error;
-      throw new HttpException(`Error al obtener reajuste: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        `Error al obtener reajuste: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -66,8 +80,13 @@ export class ReajustesController {
       const data = await this.reajustesService.buscarCatalogo(q);
       return { success: true, data };
     } catch (error) {
-      this.logger.error(`Error al buscar catálogo para reajustes: ${error.message}`);
-      throw new HttpException(`Error al buscar catálogo: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(
+        `Error al buscar catálogo para reajustes: ${error.message}`,
+      );
+      throw new HttpException(
+        `Error al buscar catálogo: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

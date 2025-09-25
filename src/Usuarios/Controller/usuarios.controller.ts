@@ -1,11 +1,11 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Param, 
-  Delete, 
-  Put, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
   ParseIntPipe,
   HttpStatus,
   HttpCode,
@@ -26,7 +26,7 @@ export class UsuariosController {
   async create(@Body() createUsuarioDto: CreateUsuarioDto) {
     try {
       const usuario = await this.usuariosService.create(createUsuarioDto);
-      
+
       return {
         success: true,
         message: 'Usuario creado exitosamente',
@@ -68,7 +68,7 @@ export class UsuariosController {
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {
       const usuario = await this.usuariosService.findOne(id);
-      
+
       return {
         success: true,
         message: 'Usuario encontrado',
@@ -92,7 +92,7 @@ export class UsuariosController {
   ) {
     try {
       const usuario = await this.usuariosService.update(id, updateUsuarioDto);
-      
+
       return {
         success: true,
         message: 'Usuario actualizado exitosamente',
@@ -115,9 +115,9 @@ export class UsuariosController {
   async remove(@Param('id', ParseIntPipe) id: number) {
     try {
       await this.usuariosService.remove(id);
-      
+
       this.logger.log(`Usuario ${id} eliminado/deshabilitado exitosamente`);
-      
+
       return {
         success: true,
         message: 'Usuario eliminado/deshabilitado exitosamente',
@@ -132,5 +132,4 @@ export class UsuariosController {
       throw error;
     }
   }
-
 }

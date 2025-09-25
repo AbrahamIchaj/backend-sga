@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { HashService } from './hash.service';
 import { PasswordTemporalService } from './password-temporal.service';
@@ -23,7 +29,9 @@ export class UsuariosService {
     private passwordTemporalService: PasswordTemporalService,
   ) {}
 
-  async create(createUsuarioDto: CreateUsuarioDto): Promise<UsuarioSinPassword> {
+  async create(
+    createUsuarioDto: CreateUsuarioDto,
+  ): Promise<UsuarioSinPassword> {
     try {
       // 1. Verificar que el correo no esté en uso
       const existingUser = await this.prisma.usuarios.findUnique({
@@ -31,7 +39,9 @@ export class UsuariosService {
       });
 
       if (existingUser) {
-        throw new ConflictException(`El correo ${createUsuarioDto.correo} ya está registrado`);
+        throw new ConflictException(
+          `El correo ${createUsuarioDto.correo} ya está registrado`,
+        );
       }
 
       const roleExists = await this.prisma.roles.findUnique({
@@ -39,17 +49,24 @@ export class UsuariosService {
       });
 
       if (!roleExists) {
-        throw new NotFoundException(`Rol con ID ${createUsuarioDto.idRol} no encontrado`);
+        throw new NotFoundException(
+          `Rol con ID ${createUsuarioDto.idRol} no encontrado`,
+        );
       }
 
-      const passwordValidation = this.hashService.validatePasswordStrength(createUsuarioDto.password);
+      const passwordValidation = this.hashService.validatePasswordStrength(
+        createUsuarioDto.password,
+      );
       if (!passwordValidation.isValid) {
-        throw new BadRequestException(`Contraseña débil: ${passwordValidation.feedback.join(', ')}`);
+        throw new BadRequestException(
+          `Contraseña débil: ${passwordValidation.feedback.join(', ')}`,
+        );
       }
 
       // 4. Hashear la contraseña
-      const passwordHash = await this.hashService.hashPassword(createUsuarioDto.password);
-
+      const passwordHash = await this.hashService.hashPassword(
+        createUsuarioDto.password,
+      );
 
       const usuario = await this.prisma.usuarios.create({
         data: {
@@ -66,7 +83,9 @@ export class UsuariosService {
         },
       });
 
-      this.logger.log(`Usuario creado exitosamente: ${usuario.correo} (ID: ${usuario.idUsuario})`);
+      this.logger.log(
+        `Usuario creado exitosamente: ${usuario.correo} (ID: ${usuario.idUsuario})`,
+      );
 
       const { passwordHash: _, ...usuarioSinPassword } = usuario;
       return usuarioSinPassword;
@@ -88,7 +107,9 @@ export class UsuariosService {
       });
 
       // Remover hash de contraseña de todos los usuarios
-      const usuariosSinPassword = usuarios.map(({ passwordHash, ...usuario }) => usuario);
+      const usuariosSinPassword = usuarios.map(
+        ({ passwordHash, ...usuario }) => usuario,
+      );
 
       this.logger.log(`Se encontraron ${usuariosSinPassword.length} usuarios`);
       return usuariosSinPassword;
@@ -122,12 +143,17 @@ export class UsuariosService {
       this.logger.log(`Usuario encontrado: ${usuario.correo} (ID: ${id})`);
       return usuarioSinPassword;
     } catch (error) {
-      this.logger.error(`Error al obtener usuario con ID ${id}: ${error.message}`);
+      this.logger.error(
+        `Error al obtener usuario con ID ${id}: ${error.message}`,
+      );
       throw error;
     }
   }
 
-  async update(id: number, updateUsuarioDto: UpdateUsuarioDto): Promise<UsuarioSinPassword> {
+  async update(
+    id: number,
+    updateUsuarioDto: UpdateUsuarioDto,
+  ): Promise<UsuarioSinPassword> {
     try {
       const existingUser = await this.prisma.usuarios.findUnique({
         where: { idUsuario: id },
@@ -137,13 +163,18 @@ export class UsuariosService {
         throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
       }
 
-      if (updateUsuarioDto.correo && updateUsuarioDto.correo !== existingUser.correo) {
+      if (
+        updateUsuarioDto.correo &&
+        updateUsuarioDto.correo !== existingUser.correo
+      ) {
         const emailInUse = await this.prisma.usuarios.findUnique({
           where: { correo: updateUsuarioDto.correo },
         });
 
         if (emailInUse) {
-          throw new ConflictException(`El correo ${updateUsuarioDto.correo} ya está registrado`);
+          throw new ConflictException(
+            `El correo ${updateUsuarioDto.correo} ya está registrado`,
+          );
         }
       }
 
@@ -153,7 +184,9 @@ export class UsuariosService {
         });
 
         if (!roleExists) {
-          throw new NotFoundException(`Rol con ID ${updateUsuarioDto.idRol} no encontrado`);
+          throw new NotFoundException(
+            `Rol con ID ${updateUsuarioDto.idRol} no encontrado`,
+          );
         }
       }
 
@@ -161,12 +194,22 @@ export class UsuariosService {
       const usuario = await this.prisma.usuarios.update({
         where: { idUsuario: id },
         data: {
-          ...(updateUsuarioDto.nombres && { nombres: updateUsuarioDto.nombres.trim() }),
-          ...(updateUsuarioDto.apellidos && { apellidos: updateUsuarioDto.apellidos.trim() }),
-          ...(updateUsuarioDto.correo && { correo: updateUsuarioDto.correo.toLowerCase().trim() }),
-          ...(updateUsuarioDto.telefono !== undefined && { telefono: updateUsuarioDto.telefono }),
+          ...(updateUsuarioDto.nombres && {
+            nombres: updateUsuarioDto.nombres.trim(),
+          }),
+          ...(updateUsuarioDto.apellidos && {
+            apellidos: updateUsuarioDto.apellidos.trim(),
+          }),
+          ...(updateUsuarioDto.correo && {
+            correo: updateUsuarioDto.correo.toLowerCase().trim(),
+          }),
+          ...(updateUsuarioDto.telefono !== undefined && {
+            telefono: updateUsuarioDto.telefono,
+          }),
           ...(updateUsuarioDto.idRol && { idRol: updateUsuarioDto.idRol }),
-          ...(updateUsuarioDto.activo !== undefined && { activo: updateUsuarioDto.activo }),
+          ...(updateUsuarioDto.activo !== undefined && {
+            activo: updateUsuarioDto.activo,
+          }),
         },
         include: {
           Roles: true,
@@ -178,7 +221,9 @@ export class UsuariosService {
       this.logger.log(`Usuario actualizado: ${usuario.correo} (ID: ${id})`);
       return usuarioSinPassword;
     } catch (error) {
-      this.logger.error(`Error al actualizar usuario con ID ${id}: ${error.message}`);
+      this.logger.error(
+        `Error al actualizar usuario con ID ${id}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -199,9 +244,10 @@ export class UsuariosService {
       }
 
       // Verificar si tiene registros asociados
-      const hasRecords = usuario.Despachos.length > 0 || 
-                        usuario.HistorialInventario.length > 0 || 
-                        usuario.Reajustes.length > 0;
+      const hasRecords =
+        usuario.Despachos.length > 0 ||
+        usuario.HistorialInventario.length > 0 ||
+        usuario.Reajustes.length > 0;
 
       if (hasRecords) {
         // Soft delete si tiene registros asociados
@@ -212,48 +258,68 @@ export class UsuariosService {
             fechaDesabilitacion: new Date(),
           },
         });
-        this.logger.log(`Usuario deshabilitado (soft delete): ${usuario.correo} (ID: ${id})`);
+        this.logger.log(
+          `Usuario deshabilitado (soft delete): ${usuario.correo} (ID: ${id})`,
+        );
       } else {
         // Hard delete si no tiene registros asociados
         await this.prisma.usuarios.delete({
           where: { idUsuario: id },
         });
-        this.logger.log(`Usuario eliminado permanentemente: ${usuario.correo} (ID: ${id})`);
+        this.logger.log(
+          `Usuario eliminado permanentemente: ${usuario.correo} (ID: ${id})`,
+        );
       }
     } catch (error) {
-      this.logger.error(`Error al eliminar usuario con ID ${id}: ${error.message}`);
+      this.logger.error(
+        `Error al eliminar usuario con ID ${id}: ${error.message}`,
+      );
       throw error;
     }
   }
 
-//METODO DE GESTION DE CONTRASEÑAS
-  async adminChangePassword(adminChangePasswordDto: AdminChangePasswordDto): Promise<{
+  //METODO DE GESTION DE CONTRASEÑAS
+  async adminChangePassword(
+    adminChangePasswordDto: AdminChangePasswordDto,
+  ): Promise<{
     success: boolean;
     temporaryPassword?: string;
     message: string;
     fechaExpiracion?: Date;
   }> {
     try {
-      const { usuarioId, newPassword, generarTemporal, notificarEmail, adminEmail, ip } = adminChangePasswordDto;
+      const {
+        usuarioId,
+        newPassword,
+        generarTemporal,
+        notificarEmail,
+        adminEmail,
+        ip,
+      } = adminChangePasswordDto;
 
       const usuario = await this.prisma.usuarios.findUnique({
         where: { idUsuario: usuarioId },
       });
 
       if (!usuario) {
-        throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado`);
+        throw new NotFoundException(
+          `Usuario con ID ${usuarioId} no encontrado`,
+        );
       }
 
       if (generarTemporal) {
         // GENERAR CONTRASEÑA TEMPORAL (24 horas)
-        const resultado = await this.passwordTemporalService.generarPasswordTemporal(
-          usuarioId,
-          adminEmail,
-          'Cambio de contraseña por administrador',
-          ip
-        );
+        const resultado =
+          await this.passwordTemporalService.generarPasswordTemporal(
+            usuarioId,
+            adminEmail,
+            'Cambio de contraseña por administrador',
+            ip,
+          );
 
-        this.logger.log(`Contraseña temporal generada para: ${usuario.correo} por admin: ${adminEmail}`);
+        this.logger.log(
+          `Contraseña temporal generada para: ${usuario.correo} por admin: ${adminEmail}`,
+        );
 
         return {
           success: true,
@@ -263,12 +329,17 @@ export class UsuariosService {
         };
       } else {
         if (!newPassword) {
-          throw new BadRequestException('Se requiere newPassword cuando generarTemporal es false');
+          throw new BadRequestException(
+            'Se requiere newPassword cuando generarTemporal es false',
+          );
         }
 
-        const validation = this.hashService.validatePasswordStrength(newPassword);
+        const validation =
+          this.hashService.validatePasswordStrength(newPassword);
         if (!validation.isValid) {
-          throw new BadRequestException(`Contraseña débil: ${validation.feedback.join(', ')}`);
+          throw new BadRequestException(
+            `Contraseña débil: ${validation.feedback.join(', ')}`,
+          );
         }
 
         // Hashear la nueva contraseña
@@ -276,28 +347,35 @@ export class UsuariosService {
 
         await this.prisma.usuarios.update({
           where: { idUsuario: usuarioId },
-          data: { 
+          data: {
             passwordHash,
             esTemporal: false,
             debesCambiarPassword: false,
           },
         });
 
-        this.logger.log(`Contraseña actualizada directamente por administrador para usuario: ${usuario.correo}`);
+        this.logger.log(
+          `Contraseña actualizada directamente por administrador para usuario: ${usuario.correo}`,
+        );
 
         return {
           success: true,
-          message: 'Contraseña actualizada exitosamente'
+          message: 'Contraseña actualizada exitosamente',
         };
       }
     } catch (error) {
-      this.logger.error(`Error en cambio de contraseña por admin: ${error.message}`);
+      this.logger.error(
+        `Error en cambio de contraseña por admin: ${error.message}`,
+      );
       throw error;
     }
   }
 
-//VERIFICAR CREDENCIALES
-  async verifyCredentials(correo: string, password: string): Promise<{
+  //VERIFICAR CREDENCIALES
+  async verifyCredentials(
+    correo: string,
+    password: string,
+  ): Promise<{
     usuario: UsuarioSinPassword | null;
     esTemporal: boolean;
     debeExpirar: boolean;
@@ -321,10 +399,11 @@ export class UsuariosService {
 
       // Si tiene contraseña temporal, verificar por ese método
       if (usuario.esTemporal) {
-        const verificacionTemporal = await this.passwordTemporalService.verificarPasswordTemporal(
-          usuario.idUsuario,
-          password
-        );
+        const verificacionTemporal =
+          await this.passwordTemporalService.verificarPasswordTemporal(
+            usuario.idUsuario,
+            password,
+          );
 
         if (!verificacionTemporal.esValido) {
           if (verificacionTemporal.debeExpirar) {
@@ -335,7 +414,9 @@ export class UsuariosService {
             });
           }
 
-          this.logger.warn(`Intento de login fallido con contraseña temporal para: ${correo}`);
+          this.logger.warn(
+            `Intento de login fallido con contraseña temporal para: ${correo}`,
+          );
           return {
             usuario: null,
             esTemporal: true,
@@ -352,16 +433,22 @@ export class UsuariosService {
 
         const { passwordHash, ...usuarioSinPassword } = usuario;
 
-        this.logger.log(`Login exitoso con contraseña temporal para: ${correo}`);
+        this.logger.log(
+          `Login exitoso con contraseña temporal para: ${correo}`,
+        );
         return {
           usuario: usuarioSinPassword,
           esTemporal: true,
           debeExpirar: false,
-          mensaje: 'Login exitoso con contraseña temporal. Debe cambiar su contraseña.',
+          mensaje:
+            'Login exitoso con contraseña temporal. Debe cambiar su contraseña.',
         };
       } else {
         // Verificación de contraseña permanente normal
-        const isValidPassword = await this.hashService.verifyPassword(password, usuario.passwordHash);
+        const isValidPassword = await this.hashService.verifyPassword(
+          password,
+          usuario.passwordHash,
+        );
 
         if (!isValidPassword) {
           this.logger.warn(`Intento de login fallido para: ${correo}`);
@@ -390,7 +477,9 @@ export class UsuariosService {
         };
       }
     } catch (error) {
-      this.logger.error(`Error en verificación de credenciales: ${error.message}`);
+      this.logger.error(
+        `Error en verificación de credenciales: ${error.message}`,
+      );
       return {
         usuario: null,
         esTemporal: false,
@@ -416,9 +505,13 @@ export class UsuariosService {
         orderBy: { nombres: 'asc' },
       });
 
-      const usuariosSinPassword = usuarios.map(({ passwordHash, ...usuario }) => usuario);
+      const usuariosSinPassword = usuarios.map(
+        ({ passwordHash, ...usuario }) => usuario,
+      );
 
-      this.logger.log(`Búsqueda "${query}" encontró ${usuariosSinPassword.length} usuarios`);
+      this.logger.log(
+        `Búsqueda "${query}" encontró ${usuariosSinPassword.length} usuarios`,
+      );
       return usuariosSinPassword;
     } catch (error) {
       this.logger.error(`Error en búsqueda de usuarios: ${error.message}`);
@@ -426,7 +519,7 @@ export class UsuariosService {
     }
   }
 
-//ESTADISTICAS DE USUARIOS
+  //ESTADISTICAS DE USUARIOS
   async getEstadisticas(): Promise<{
     totalUsuarios: number;
     usuariosActivos: number;
@@ -434,21 +527,24 @@ export class UsuariosService {
     porRoles: Array<{ rol: string; cantidad: number }>;
   }> {
     try {
-      const [totalUsuarios, usuariosActivos, usuariosInactivos, porRoles] = await Promise.all([
-        this.prisma.usuarios.count(),
-        this.prisma.usuarios.count({ where: { activo: true } }),
-        this.prisma.usuarios.count({ where: { activo: false } }),
-        this.prisma.usuarios.groupBy({
-          by: ['idRol'],
-          _count: { idRol: true },
-        }),
-      ]);
+      const [totalUsuarios, usuariosActivos, usuariosInactivos, porRoles] =
+        await Promise.all([
+          this.prisma.usuarios.count(),
+          this.prisma.usuarios.count({ where: { activo: true } }),
+          this.prisma.usuarios.count({ where: { activo: false } }),
+          this.prisma.usuarios.groupBy({
+            by: ['idRol'],
+            _count: { idRol: true },
+          }),
+        ]);
 
       // Obtener nombres de roles
       const rolesData = await this.prisma.roles.findMany();
-      const rolesMap = new Map(rolesData.map(rol => [rol.idRoles, rol.nombreRol]));
+      const rolesMap = new Map(
+        rolesData.map((rol) => [rol.idRoles, rol.nombreRol]),
+      );
 
-      const estadisticasPorRoles = porRoles.map(item => ({
+      const estadisticasPorRoles = porRoles.map((item) => ({
         rol: rolesMap.get(item.idRol) || 'Desconocido',
         cantidad: item._count.idRol,
       }));
@@ -465,38 +561,46 @@ export class UsuariosService {
     }
   }
 
-//CAMBIO DE CONTRASEÑA TEMPORAL POR UNA PERMANENTE
+  //CAMBIO DE CONTRASEÑA TEMPORAL POR UNA PERMANENTE
   async cambiarPasswordTemporal(
     usuarioId: number,
-    nuevaPassword: string
+    nuevaPassword: string,
   ): Promise<{ success: boolean; mensaje: string }> {
     try {
       return await this.passwordTemporalService.cambiarPasswordTemporalAPermanente(
         usuarioId,
-        nuevaPassword
+        nuevaPassword,
       );
     } catch (error) {
-      this.logger.error(`Error al cambiar contraseña temporal: ${error.message}`);
+      this.logger.error(
+        `Error al cambiar contraseña temporal: ${error.message}`,
+      );
       throw error;
     }
   }
 
-// CONTRASEÑAS TEMPORALES ADMIN
+  // CONTRASEÑAS TEMPORALES ADMIN
   async obtenerPasswordsTemporalesAdmin(adminEmail: string) {
     try {
-      return await this.passwordTemporalService.obtenerPasswordsTemporalesAdmin(adminEmail);
+      return await this.passwordTemporalService.obtenerPasswordsTemporalesAdmin(
+        adminEmail,
+      );
     } catch (error) {
-      this.logger.error(`Error al obtener contraseñas temporales: ${error.message}`);
+      this.logger.error(
+        `Error al obtener contraseñas temporales: ${error.message}`,
+      );
       throw error;
     }
   }
 
-// LIMPIAR CONTRASEÑAS TEMPORALES EXPIRADAS
+  // LIMPIAR CONTRASEÑAS TEMPORALES EXPIRADAS
   async limpiarPasswordsExpiradas() {
     try {
       return await this.passwordTemporalService.limpiarPasswordsExpiradas();
     } catch (error) {
-      this.logger.error(`Error en limpieza de contraseñas temporales: ${error.message}`);
+      this.logger.error(
+        `Error en limpieza de contraseñas temporales: ${error.message}`,
+      );
       throw error;
     }
   }

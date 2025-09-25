@@ -1,4 +1,11 @@
-import { IsOptional, IsString, IsInt, IsDateString, IsDecimal, Min } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsInt,
+  IsDateString,
+  IsDecimal,
+  Min,
+} from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 export class ListInventarioQueryDto {
@@ -134,7 +141,8 @@ export class ReporteInventarioDto {
 
   @IsOptional()
   @IsString()
-  tipoReporte?: 'general' | 'vencimientos' | 'stockBajo' | 'movimientos' = 'general';
+  tipoReporte?: 'general' | 'vencimientos' | 'stockBajo' | 'movimientos' =
+    'general';
 
   @IsOptional()
   @IsDateString()

@@ -1,7 +1,16 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { CreateCompraDto, CreateCompraDetalleDto, CreateCompraLoteDto } from '../dto/create-compra.dto';
+import {
+  CreateCompraDto,
+  CreateCompraDetalleDto,
+  CreateCompraLoteDto,
+} from '../dto/create-compra.dto';
 import { UpdateCompraDto } from '../dto/update-compra.dto';
 
 @Injectable()
@@ -12,13 +21,18 @@ export class ComprasService {
 
   async create(dto: CreateCompraDto, idUsuario: number) {
     if (!dto.detalles?.length) {
-      throw new BadRequestException('La compra debe incluir al menos un detalle');
+      throw new BadRequestException(
+        'La compra debe incluir al menos un detalle',
+      );
     }
 
     dto.detalles.forEach((d, idx) => {
-      const totalLotes = d.lotes?.reduce((acc, l) => acc + (l.cantidad || 0), 0) || 0;
+      const totalLotes =
+        d.lotes?.reduce((acc, l) => acc + (l.cantidad || 0), 0) || 0;
       if (totalLotes !== d.cantidadTotal) {
-        throw new BadRequestException(`La suma de lotes (${totalLotes}) no coincide con cantidadTotal (${d.cantidadTotal}) en detalle #${idx + 1}`);
+        throw new BadRequestException(
+          `La suma de lotes (${totalLotes}) no coincide con cantidadTotal (${d.cantidadTotal}) en detalle #${idx + 1}`,
+        );
       }
     });
 
@@ -39,10 +53,12 @@ export class ComprasService {
         },
       });
 
-  let totalFactura = 0;
+      let totalFactura = 0;
 
-  // Debug: log detalles recibidos
-  this.logger.debug(`Detalles recibidos (count=${dto.detalles.length}): ${JSON.stringify(dto.detalles.map(d => ({ idCatalogoInsumos: d.idCatalogoInsumos })) )}`);
+      // Debug: log detalles recibidos
+      this.logger.debug(
+        `Detalles recibidos (count=${dto.detalles.length}): ${JSON.stringify(dto.detalles.map((d) => ({ idCatalogoInsumos: d.idCatalogoInsumos })))}`,
+      );
 
       for (const det of dto.detalles) {
         totalFactura += Number(det.precioTotalFactura || 0);
@@ -70,21 +86,27 @@ export class ComprasService {
             idIngresoComprasDetalle: detalle.idIngresoComprasDetalle,
             cantidad: lote.cantidad,
             lote: lote.lote?.trim() || null,
-            fechaVencimiento: lote.fechaVencimiento ? new Date(lote.fechaVencimiento) : null,
+            fechaVencimiento: lote.fechaVencimiento
+              ? new Date(lote.fechaVencimiento)
+              : null,
             mesesDevolucion: lote.mesesDevolucion || null,
-            observacionesDevolucion: lote.observacionesDevolucion?.trim() || null,
+            observacionesDevolucion:
+              lote.observacionesDevolucion?.trim() || null,
             // Normalizar cartaCompromiso por lote (acepta 1/0, '1', true, false)
             cartaCompromiso: (() => {
               const v: any = lote.cartaCompromiso;
               if (v === null || v === undefined) return false;
               if (typeof v === 'boolean') return v;
               if (typeof v === 'number') return v === 1;
-              if (typeof v === 'string') return v === '1' || v.toLowerCase() === 'true';
+              if (typeof v === 'string')
+                return v === '1' || v.toLowerCase() === 'true';
               return Boolean(v);
             })(),
           };
 
-          const loteCreado = await tx.ingresoComprasLotes.create({ data: dataForLote as any });
+          const loteCreado = await tx.ingresoComprasLotes.create({
+            data: dataForLote,
+          });
 
           const inv = await tx.inventario.create({
             data: {
@@ -96,7 +118,9 @@ export class ComprasService {
               caracteristicas: detalle.caracteristicas,
               codigoPresentacion: detalle.codigoPresentacion,
               presentacion: detalle.presentacion,
-              unidadMedida: (await this.getUnidadMedida(tx, det.idCatalogoInsumos)) || 'UNIDAD',
+              unidadMedida:
+                (await this.getUnidadMedida(tx, det.idCatalogoInsumos)) ||
+                'UNIDAD',
               lote: loteCreado.lote || 'SIN-LOTE',
               fechaVencimiento: loteCreado.fechaVencimiento,
               cartaCompromiso: loteCreado.cartaCompromiso,
@@ -104,7 +128,9 @@ export class ComprasService {
               observacionesDevolucion: loteCreado.observacionesDevolucion,
               cantidadDisponible: loteCreado.cantidad,
               precioUnitario: new Prisma.Decimal(det.precioUnitario),
-              precioTotal: new Prisma.Decimal(Number(det.precioUnitario) * loteCreado.cantidad),
+              precioTotal: new Prisma.Decimal(
+                Number(det.precioUnitario) * loteCreado.cantidad,
+              ),
             },
           });
         }
@@ -114,7 +140,10 @@ export class ComprasService {
     });
   }
 
-  async getUnidadMedida(tx: Prisma.TransactionClient, idCatalogoInsumos: number): Promise<string> {
+  async getUnidadMedida(
+    tx: Prisma.TransactionClient,
+    idCatalogoInsumos: number,
+  ): Promise<string> {
     const insumo = await tx.catalogoInsumos.findUnique({
       where: { idCatalogoInsumos },
       select: { unidadMedida: true },
@@ -152,11 +181,11 @@ export class ComprasService {
                 unidadMedida: true,
                 codigoInsumo: true,
                 codigoPresentacion: true,
-                renglon: true
-              }
-            }
+                renglon: true,
+              },
+            },
           },
-          orderBy: { renglon: 'asc' }
+          orderBy: { renglon: 'asc' },
         },
       },
     });
@@ -168,12 +197,12 @@ export class ComprasService {
     // Calcular totales
     const totalItems = compra.IngresoComprasDetalle.length;
     const totalCantidad = compra.IngresoComprasDetalle.reduce(
-      (sum, detalle) => sum + detalle.cantidadTotal, 
-      0
+      (sum, detalle) => sum + detalle.cantidadTotal,
+      0,
     );
     const totalFactura = compra.IngresoComprasDetalle.reduce(
-      (sum, detalle) => sum + Number(detalle.precioTotalFactura), 
-      0
+      (sum, detalle) => sum + Number(detalle.precioTotalFactura),
+      0,
     );
 
     return {
@@ -182,27 +211,39 @@ export class ComprasService {
       totalCantidad,
       totalFactura,
       // Agregar información de productos sin lote vs con lote
-      resumenLotes: compra.IngresoComprasDetalle.map(detalle => ({
+      resumenLotes: compra.IngresoComprasDetalle.map((detalle) => ({
         idDetalle: detalle.idIngresoComprasDetalle,
         nombreInsumo: detalle.nombreInsumo,
         cantidadTotal: detalle.cantidadTotal,
-        lotes: detalle.IngresoComprasLotes.map(lote => ({
+        lotes: detalle.IngresoComprasLotes.map((lote) => ({
           ...lote,
           tieneVencimiento: !!lote.fechaVencimiento,
           tieneDevolucion: !!lote.mesesDevolucion,
-          fechaNotificacion: lote.fechaVencimiento && lote.mesesDevolucion ? 
-            new Date(new Date(lote.fechaVencimiento).setMonth(
-              new Date(lote.fechaVencimiento).getMonth() - lote.mesesDevolucion
-            )) : null
-        }))
-      }))
+          fechaNotificacion:
+            lote.fechaVencimiento && lote.mesesDevolucion
+              ? new Date(
+                  new Date(lote.fechaVencimiento).setMonth(
+                    new Date(lote.fechaVencimiento).getMonth() -
+                      lote.mesesDevolucion,
+                  ),
+                )
+              : null,
+        })),
+      })),
     };
   }
 
-  async findAll(params: { proveedor?: string; desde?: string; hasta?: string; page?: number; limit?: number }) {
+  async findAll(params: {
+    proveedor?: string;
+    desde?: string;
+    hasta?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const { proveedor, desde, hasta, page = 1, limit = 20 } = params;
     const where: Prisma.IngresoComprasWhereInput = {};
-    if (proveedor) where.proveedor = { contains: proveedor, mode: 'insensitive' };
+    if (proveedor)
+      where.proveedor = { contains: proveedor, mode: 'insensitive' };
     if (desde || hasta) {
       where.fechaIngreso = {
         ...(desde ? { gte: new Date(desde) } : {}),
@@ -222,11 +263,11 @@ export class ComprasService {
       this.prisma.ingresoCompras.count({ where }),
     ]);
 
-      const resumen = data.map((c) => ({
+    const resumen = data.map((c) => ({
       idIngresoCompras: c.idIngresoCompras,
       fechaIngreso: c.fechaIngreso,
       proveedor: c.proveedor,
-  numeroFactura: c.numeroFactura,
+      numeroFactura: c.numeroFactura,
       serieFactura: c.serieFactura,
       tipoCompra: c.tipoCompra,
       ordenCompra: c.ordenCompra,
@@ -234,8 +275,14 @@ export class ComprasService {
       numero1h: c.numero1h,
       noKardex: c.noKardex,
       totalItems: c.IngresoComprasDetalle.length,
-      totalCantidad: c.IngresoComprasDetalle.reduce((acc, d) => acc + d.cantidadTotal, 0),
-      totalFactura: c.IngresoComprasDetalle.reduce((acc, d) => acc + Number(d.precioTotalFactura), 0),
+      totalCantidad: c.IngresoComprasDetalle.reduce(
+        (acc, d) => acc + d.cantidadTotal,
+        0,
+      ),
+      totalFactura: c.IngresoComprasDetalle.reduce(
+        (acc, d) => acc + Number(d.precioTotalFactura),
+        0,
+      ),
     }));
 
     return { data: resumen, total, page, limit };
@@ -245,10 +292,16 @@ export class ComprasService {
     const compra = await this.prisma.ingresoCompras.update({
       where: { idIngresoCompras: id },
       data: {
-  ...(dto.numeroFactura !== undefined && { numeroFactura: String(dto.numeroFactura) }),
-        ...(dto.serieFactura !== undefined && { serieFactura: dto.serieFactura }),
+        ...(dto.numeroFactura !== undefined && {
+          numeroFactura: String(dto.numeroFactura),
+        }),
+        ...(dto.serieFactura !== undefined && {
+          serieFactura: dto.serieFactura,
+        }),
         ...(dto.tipoCompra !== undefined && { tipoCompra: dto.tipoCompra }),
-        ...(dto.fechaIngreso !== undefined && { fechaIngreso: new Date(dto.fechaIngreso) }),
+        ...(dto.fechaIngreso !== undefined && {
+          fechaIngreso: new Date(dto.fechaIngreso),
+        }),
         ...(dto.proveedor !== undefined && { proveedor: dto.proveedor }),
         ...(dto.ordenCompra !== undefined && { ordenCompra: dto.ordenCompra }),
         ...(dto.programa !== undefined && { programa: dto.programa }),
@@ -274,42 +327,71 @@ export class ComprasService {
       const idsInventario = compra.Inventario.map((i) => i.idInventario);
 
       // No permitir anular si existen despachos asociados
-      const countDespachos = idsInventario.length > 0 ? await tx.despachos.count({ where: { idInventario: { in: idsInventario } } }) : 0;
+      const countDespachos =
+        idsInventario.length > 0
+          ? await tx.despachos.count({
+              where: { idInventario: { in: idsInventario } },
+            })
+          : 0;
       if (countDespachos > 0) {
-        throw new BadRequestException('No se puede anular: existen despachos asociados a su inventario');
+        throw new BadRequestException(
+          'No se puede anular: existen despachos asociados a su inventario',
+        );
       }
 
       // No permitir anular si existen reajustes que referencien inventario
-      const countReajustes = idsInventario.length > 0 ? await tx.reajusteDetalle.count({ where: { idInventario: { in: idsInventario } } }) : 0;
+      const countReajustes =
+        idsInventario.length > 0
+          ? await tx.reajusteDetalle.count({
+              where: { idInventario: { in: idsInventario } },
+            })
+          : 0;
       if (countReajustes > 0) {
-        throw new BadRequestException('No se puede anular: existen reajustes que referencian el inventario de esta compra');
+        throw new BadRequestException(
+          'No se puede anular: existen reajustes que referencian el inventario de esta compra',
+        );
       }
 
       // Borrar historial de inventario asociado a esta compra (opcional según política)
-      await tx.historialInventario.deleteMany({ where: { idIngresoCompras: id } });
+      await tx.historialInventario.deleteMany({
+        where: { idIngresoCompras: id },
+      });
 
       // Borrar registros de inventario relacionados a esta compra
       if (idsInventario.length > 0) {
-        await tx.inventario.deleteMany({ where: { idInventario: { in: idsInventario } } });
+        await tx.inventario.deleteMany({
+          where: { idInventario: { in: idsInventario } },
+        });
       }
 
       // Borrar lotes y detalles
-      const detalleIds = compra.IngresoComprasDetalle.map(d => d.idIngresoComprasDetalle);
+      const detalleIds = compra.IngresoComprasDetalle.map(
+        (d) => d.idIngresoComprasDetalle,
+      );
       if (detalleIds.length > 0) {
         // Borrar lotes
-        await tx.ingresoComprasLotes.deleteMany({ where: { idIngresoComprasDetalle: { in: detalleIds } } });
+        await tx.ingresoComprasLotes.deleteMany({
+          where: { idIngresoComprasDetalle: { in: detalleIds } },
+        });
         // Borrar detalles
-        await tx.ingresoComprasDetalle.deleteMany({ where: { idIngresoCompras: id } });
+        await tx.ingresoComprasDetalle.deleteMany({
+          where: { idIngresoCompras: id },
+        });
       }
 
       // Finalmente borrar la cabecera de la compra
       await tx.ingresoCompras.delete({ where: { idIngresoCompras: id } });
 
-      return { message: `Compra ${id} eliminada y registros relacionados removidos. Motivo: ${motivo}` };
+      return {
+        message: `Compra ${id} eliminada y registros relacionados removidos. Motivo: ${motivo}`,
+      };
     });
   }
 
-  private async getIdCatalogoFromInventario(tx: Prisma.TransactionClient, idInventario: number): Promise<number> {
+  private async getIdCatalogoFromInventario(
+    tx: Prisma.TransactionClient,
+    idInventario: number,
+  ): Promise<number> {
     const det = await tx.ingresoComprasDetalle.findFirst({
       where: {
         IngresoCompras: { Inventario: { some: { idInventario } } },

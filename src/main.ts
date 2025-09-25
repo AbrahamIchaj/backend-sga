@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { BigIntToStringInterceptor } from './common/interceptors/bigint-to-string.interceptor';
-import { 
+import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
@@ -12,7 +12,7 @@ import type { FastifyInstance } from 'fastify';
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter()
+    new FastifyAdapter(),
   );
 
   const PORT_AUX = 3001;
@@ -21,14 +21,16 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   // Configurar ValidationPipe global
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true,
-    transformOptions: {
-      enableImplicitConversion: true,
-    },
-    whitelist: true,
-    forbidNonWhitelisted: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   // Configurar CORS y otros middlewares
   app.enableCors({
@@ -49,8 +51,6 @@ async function bootstrap() {
     preflightContinue: false,
   });
 
-
-  
   // Registrar el plugin multipart  CatalogoInsumos
   const fastifyInstance = app.getHttpAdapter().getInstance() as FastifyInstance;
   await fastifyInstance.register(import('@fastify/multipart'), {
@@ -58,14 +58,12 @@ async function bootstrap() {
       fileSize: 52428800, // 50MB
       fieldSize: 52428800, // 50MB
       files: 1, // Número máximo de archivos
-      fields: 5 // Número máximo de campos
-    }
+      fields: 5, // Número máximo de campos
+    },
   });
-
 
   // Iniciar la aplicación
   await app.listen(process.env.PORT ?? `${PORT_AUX}`, '0.0.0.0');
-  
 }
 
 void bootstrap();

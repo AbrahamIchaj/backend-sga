@@ -1,10 +1,10 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { 
-  ListInventarioQueryDto, 
-  InventarioExistenciasDto, 
+import {
+  ListInventarioQueryDto,
+  InventarioExistenciasDto,
   InventarioHistorialQueryDto,
-  ReporteInventarioDto 
+  ReporteInventarioDto,
 } from '../dto/inventario-query.dto';
 import {
   InventarioResponse,
@@ -12,7 +12,7 @@ import {
   HistorialInventarioResponse,
   ResumenInventarioResponse,
   MovimientosRecientesResponse,
-  AlertasInventarioResponse
+  AlertasInventarioResponse,
 } from '../dto/inventario-response.dto';
 
 @Injectable()
@@ -26,8 +26,8 @@ export class InventarioService {
    */
   async findAll(query: ListInventarioQueryDto) {
     try {
-      const { 
-        search, 
+      const {
+        search,
         codigoInsumo,
         nombreInsumo,
         lote,
@@ -37,40 +37,63 @@ export class InventarioService {
         codigoPresentacion,
         presentacion,
         proximosVencer,
-        stockBajo
+        stockBajo,
       } = query as any;
 
-  // Normalizar filtros que pueden llegar como strings
-  const parsedCodigoInsumo = codigoInsumo !== undefined && codigoInsumo !== null ? Number((query as any).codigoInsumo) : undefined;
-  const parsedCodigoPresentacion = codigoPresentacion !== undefined && codigoPresentacion !== null ? Number((query as any).codigoPresentacion) : undefined;
-  const parsedCantidadMinima = cantidadMinima !== undefined && cantidadMinima !== null ? Number((query as any).cantidadMinima) : undefined;
-  const parsedProximosVencer = proximosVencer === 'true' || proximosVencer === true || proximosVencer === '1' || proximosVencer === 1;
-      
+      // Normalizar filtros que pueden llegar como strings
+      const parsedCodigoInsumo =
+        codigoInsumo !== undefined && codigoInsumo !== null
+          ? Number((query as any).codigoInsumo)
+          : undefined;
+      const parsedCodigoPresentacion =
+        codigoPresentacion !== undefined && codigoPresentacion !== null
+          ? Number((query as any).codigoPresentacion)
+          : undefined;
+      const parsedCantidadMinima =
+        cantidadMinima !== undefined && cantidadMinima !== null
+          ? Number((query as any).cantidadMinima)
+          : undefined;
+      const parsedProximosVencer =
+        proximosVencer === 'true' ||
+        proximosVencer === true ||
+        proximosVencer === '1' ||
+        proximosVencer === 1;
+
       // Construir filtros dinámicos
       const where: any = {
-        cantidadDisponible: { gt: 0 } // Solo mostrar items con stock disponible
+        cantidadDisponible: { gt: 0 }, // Solo mostrar items con stock disponible
       };
 
       if (search) {
         where.OR = [
           { nombreInsumo: { contains: search, mode: 'insensitive' } },
           { caracteristicas: { contains: search, mode: 'insensitive' } },
-          { lote: { contains: search, mode: 'insensitive' } }
+          { lote: { contains: search, mode: 'insensitive' } },
         ];
       }
 
-  if (parsedCodigoInsumo && !Number.isNaN(parsedCodigoInsumo)) where.codigoInsumo = parsedCodigoInsumo;
-      if (nombreInsumo) where.nombreInsumo = { contains: nombreInsumo, mode: 'insensitive' };
+      if (parsedCodigoInsumo && !Number.isNaN(parsedCodigoInsumo))
+        where.codigoInsumo = parsedCodigoInsumo;
+      if (nombreInsumo)
+        where.nombreInsumo = { contains: nombreInsumo, mode: 'insensitive' };
       if (lote) where.lote = { contains: lote, mode: 'insensitive' };
-  if (parsedCantidadMinima !== undefined && !Number.isNaN(parsedCantidadMinima)) where.cantidadDisponible = { gte: parsedCantidadMinima };
-  if (parsedCodigoPresentacion && !Number.isNaN(parsedCodigoPresentacion)) where.codigoPresentacion = parsedCodigoPresentacion;
-      if (presentacion) where.presentacion = { contains: presentacion, mode: 'insensitive' };
+      if (
+        parsedCantidadMinima !== undefined &&
+        !Number.isNaN(parsedCantidadMinima)
+      )
+        where.cantidadDisponible = { gte: parsedCantidadMinima };
+      if (parsedCodigoPresentacion && !Number.isNaN(parsedCodigoPresentacion))
+        where.codigoPresentacion = parsedCodigoPresentacion;
+      if (presentacion)
+        where.presentacion = { contains: presentacion, mode: 'insensitive' };
 
       // Filtro de fechas de vencimiento
       if (fechaVencimientoDesde || fechaVencimientoHasta) {
         where.fechaVencimiento = {};
-        if (fechaVencimientoDesde) where.fechaVencimiento.gte = new Date(fechaVencimientoDesde);
-        if (fechaVencimientoHasta) where.fechaVencimiento.lte = new Date(fechaVencimientoHasta);
+        if (fechaVencimientoDesde)
+          where.fechaVencimiento.gte = new Date(fechaVencimientoDesde);
+        if (fechaVencimientoHasta)
+          where.fechaVencimiento.lte = new Date(fechaVencimientoHasta);
       }
 
       // Filtro para próximos a vencer (30 días)
@@ -80,7 +103,7 @@ export class InventarioService {
         where.fechaVencimiento = {
           ...where.fechaVencimiento,
           lte: fechaLimite,
-          gte: new Date() // Solo futuros
+          gte: new Date(), // Solo futuros
         };
       }
 
@@ -100,19 +123,16 @@ export class InventarioService {
                 numeroFactura: true,
                 serieFactura: true,
                 fechaIngreso: true,
-                proveedor: true
-              }
-            }
+                proveedor: true,
+              },
+            },
           },
-          orderBy: [
-            { fechaVencimiento: 'asc' },
-            { codigoInsumo: 'asc' }
-          ]
+          orderBy: [{ fechaVencimiento: 'asc' }, { codigoInsumo: 'asc' }],
         }),
-        this.prisma.inventario.count({ where })
+        this.prisma.inventario.count({ where }),
       ]);
 
-      const data: InventarioResponse[] = inventario.map(item => {
+      const data: InventarioResponse[] = inventario.map((item) => {
         const ingreso = item.IngresoCompras;
         return {
           idInventario: item.idInventario,
@@ -137,24 +157,23 @@ export class InventarioService {
                 numeroFactura: ingreso.numeroFactura,
                 serieFactura: ingreso.serieFactura,
                 fechaIngreso: ingreso.fechaIngreso,
-                proveedor: ingreso.proveedor
+                proveedor: ingreso.proveedor,
               }
-            : null
+            : null,
         };
       });
 
       return {
         data,
         meta: {
-          total
-        }
+          total,
+        },
       };
-
     } catch (error) {
       this.logger.error(`Error al obtener inventario: ${error.message}`);
       throw new HttpException(
         `Error al obtener inventario: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -173,14 +192,17 @@ export class InventarioService {
               numeroFactura: true,
               serieFactura: true,
               fechaIngreso: true,
-              proveedor: true
-            }
-          }
-        }
+              proveedor: true,
+            },
+          },
+        },
       });
 
       if (!inventario) {
-        throw new HttpException(`Item de inventario con ID ${id} no encontrado`, HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          `Item de inventario con ID ${id} no encontrado`,
+          HttpStatus.NOT_FOUND,
+        );
       }
 
       const ingreso = inventario.IngresoCompras;
@@ -207,17 +229,18 @@ export class InventarioService {
               numeroFactura: ingreso.numeroFactura,
               serieFactura: ingreso.serieFactura,
               fechaIngreso: ingreso.fechaIngreso,
-              proveedor: ingreso.proveedor
+              proveedor: ingreso.proveedor,
             }
-          : null
+          : null,
       };
-
     } catch (error) {
-      this.logger.error(`Error al obtener item de inventario ${id}: ${error.message}`);
+      this.logger.error(
+        `Error al obtener item de inventario ${id}: ${error.message}`,
+      );
       if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al obtener item de inventario: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -225,12 +248,14 @@ export class InventarioService {
   /**
    * Obtener existencias agrupadas por producto
    */
-  async getExistencias(dto: InventarioExistenciasDto): Promise<ExistenciasResponse[]> {
+  async getExistencias(
+    dto: InventarioExistenciasDto,
+  ): Promise<ExistenciasResponse[]> {
     try {
       const { codigoInsumo, lote, codigoPresentacion } = dto;
 
       const where: any = {
-        cantidadDisponible: { gt: 0 }
+        cantidadDisponible: { gt: 0 },
       };
 
       if (codigoInsumo) where.codigoInsumo = codigoInsumo;
@@ -239,18 +264,15 @@ export class InventarioService {
 
       const inventario = await this.prisma.inventario.findMany({
         where,
-        orderBy: [
-          { codigoInsumo: 'asc' },
-          { fechaVencimiento: 'asc' }
-        ]
+        orderBy: [{ codigoInsumo: 'asc' }, { fechaVencimiento: 'asc' }],
       });
 
       // Agrupar por producto
       const productosMap = new Map<number, ExistenciasResponse>();
 
-      inventario.forEach(item => {
+      inventario.forEach((item) => {
         const key = item.codigoInsumo;
-        
+
         if (!productosMap.has(key)) {
           productosMap.set(key, {
             codigoInsumo: item.codigoInsumo,
@@ -259,7 +281,7 @@ export class InventarioService {
             presentacion: item.presentacion,
             unidadMedida: item.unidadMedida,
             existenciaTotal: 0,
-            lotes: []
+            lotes: [],
           });
         }
 
@@ -271,7 +293,9 @@ export class InventarioService {
         if (item.fechaVencimiento) {
           const hoy = new Date();
           const fechaVenc = new Date(item.fechaVencimiento);
-          diasParaVencer = Math.ceil((fechaVenc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+          diasParaVencer = Math.ceil(
+            (fechaVenc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
+          );
         }
 
         producto.lotes.push({
@@ -282,17 +306,16 @@ export class InventarioService {
           fechaVencimiento: item.fechaVencimiento,
           cantidad: item.cantidadDisponible,
           precioUnitario: Number(item.precioUnitario),
-          diasParaVencer
+          diasParaVencer,
         });
       });
 
       return Array.from(productosMap.values());
-
     } catch (error) {
       this.logger.error(`Error al obtener existencias: ${error.message}`);
       throw new HttpException(
         `Error al obtener existencias: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -312,7 +335,7 @@ export class InventarioService {
         modulo,
         fechaDesde,
         fechaHasta,
-        idUsuario
+        idUsuario,
       } = query;
 
       const where: any = {};
@@ -341,43 +364,43 @@ export class InventarioService {
               select: {
                 codigoInsumo: true,
                 nombreInsumo: true,
-                nombrePresentacion: true
-              }
+                nombrePresentacion: true,
+              },
             },
             Usuarios: {
               select: {
                 nombres: true,
-                apellidos: true
-              }
+                apellidos: true,
+              },
             },
             IngresoCompras: {
               select: {
                 numeroFactura: true,
                 serieFactura: true,
-                proveedor: true
-              }
+                proveedor: true,
+              },
             },
             Despachos: {
               select: {
                 Servicios: {
                   select: {
-                    nombre: true
-                  }
-                }
-              }
+                    nombre: true,
+                  },
+                },
+              },
             },
             Reajustes: {
               select: {
-                referenciaDocumento: true
-              }
-            }
+                referenciaDocumento: true,
+              },
+            },
           },
-          orderBy: { fechaMovimiento: 'desc' }
+          orderBy: { fechaMovimiento: 'desc' },
         }),
-        this.prisma.historialInventario.count({ where })
+        this.prisma.historialInventario.count({ where }),
       ]);
 
-      const data: HistorialInventarioResponse[] = historial.map(item => {
+      const data: HistorialInventarioResponse[] = historial.map((item) => {
         const response: HistorialInventarioResponse = {
           idHistorial: item.idHistorial,
           lote: item.lote,
@@ -390,13 +413,13 @@ export class InventarioService {
             ? {
                 codigoInsumo: item.CatalogoInsumos.codigoInsumo,
                 nombreInsumo: item.CatalogoInsumos.nombreInsumo,
-                presentacion: item.CatalogoInsumos.nombrePresentacion
+                presentacion: item.CatalogoInsumos.nombrePresentacion,
               }
             : null,
           usuario: {
             nombres: item.Usuarios.nombres,
-            apellidos: item.Usuarios.apellidos
-          }
+            apellidos: item.Usuarios.apellidos,
+          },
         };
 
         // Agregar información de referencia según el módulo
@@ -404,21 +427,21 @@ export class InventarioService {
           response.referencia = {
             numeroFactura: item.IngresoCompras.numeroFactura,
             serieFactura: item.IngresoCompras.serieFactura,
-            proveedor: item.IngresoCompras.proveedor
+            proveedor: item.IngresoCompras.proveedor,
           };
         }
 
         if (item.Despachos?.Servicios) {
           response.referencia = {
             ...response.referencia,
-            servicio: item.Despachos.Servicios.nombre
+            servicio: item.Despachos.Servicios.nombre,
           };
         }
 
         if (item.Reajustes) {
           response.referencia = {
             ...response.referencia,
-            referenciaDocumento: item.Reajustes.referenciaDocumento
+            referenciaDocumento: item.Reajustes.referenciaDocumento,
           };
         }
 
@@ -431,15 +454,14 @@ export class InventarioService {
           total,
           page,
           limit,
-          totalPages: Math.ceil(total / limit)
-        }
+          totalPages: Math.ceil(total / limit),
+        },
       };
-
     } catch (error) {
       this.logger.error(`Error al obtener historial: ${error.message}`);
       throw new HttpException(
         `Error al obtener historial: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -454,42 +476,42 @@ export class InventarioService {
         valorTotal,
         itemsProximosVencer,
         itemsStockBajo,
-        totalLotes
+        totalLotes,
       ] = await Promise.all([
         // Total de items en inventario con stock
         this.prisma.inventario.count({
-          where: { cantidadDisponible: { gt: 0 } }
+          where: { cantidadDisponible: { gt: 0 } },
         }),
-        
+
         // Valor total del inventario
         this.prisma.inventario.aggregate({
           where: { cantidadDisponible: { gt: 0 } },
-          _sum: { precioTotal: true }
+          _sum: { precioTotal: true },
         }),
-        
+
         // Items próximos a vencer (30 días)
         this.prisma.inventario.count({
           where: {
             cantidadDisponible: { gt: 0 },
             fechaVencimiento: {
               lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              gte: new Date()
-            }
-          }
+              gte: new Date(),
+            },
+          },
         }),
-        
+
         // Items con stock bajo (menos de 10)
         this.prisma.inventario.count({
           where: {
-            cantidadDisponible: { lt: 10, gt: 0 }
-          }
+            cantidadDisponible: { lt: 10, gt: 0 },
+          },
         }),
-        
+
         // Total de lotes únicos
         this.prisma.inventario.groupBy({
           by: ['lote'],
-          where: { cantidadDisponible: { gt: 0 } }
-        })
+          where: { cantidadDisponible: { gt: 0 } },
+        }),
       ]);
 
       return {
@@ -498,14 +520,13 @@ export class InventarioService {
         itemsProximosVencer,
         itemsStockBajo,
         totalLotes: totalLotes.length,
-        ultimaActualizacion: new Date()
+        ultimaActualizacion: new Date(),
       };
-
     } catch (error) {
       this.logger.error(`Error al obtener resumen: ${error.message}`);
       throw new HttpException(
         `Error al obtener resumen: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -518,88 +539,94 @@ export class InventarioService {
       const hoy = new Date();
       const en30Dias = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-      const [productosVencidos, productosProximosVencer, productosStockBajo] = await Promise.all([
-        // Productos vencidos
-        this.prisma.inventario.findMany({
-          where: {
-            cantidadDisponible: { gt: 0 },
-            fechaVencimiento: { lt: hoy }
-          },
-          select: {
-            codigoInsumo: true,
-            nombreInsumo: true,
-            lote: true,
-            fechaVencimiento: true,
-            cantidadDisponible: true
-          },
-          orderBy: { fechaVencimiento: 'desc' }
-        }),
+      const [productosVencidos, productosProximosVencer, productosStockBajo] =
+        await Promise.all([
+          // Productos vencidos
+          this.prisma.inventario.findMany({
+            where: {
+              cantidadDisponible: { gt: 0 },
+              fechaVencimiento: { lt: hoy },
+            },
+            select: {
+              codigoInsumo: true,
+              nombreInsumo: true,
+              lote: true,
+              fechaVencimiento: true,
+              cantidadDisponible: true,
+            },
+            orderBy: { fechaVencimiento: 'desc' },
+          }),
 
-        // Productos próximos a vencer
-        this.prisma.inventario.findMany({
-          where: {
-            cantidadDisponible: { gt: 0 },
-            fechaVencimiento: {
-              gte: hoy,
-              lte: en30Dias
-            }
-          },
-          select: {
-            codigoInsumo: true,
-            nombreInsumo: true,
-            lote: true,
-            fechaVencimiento: true,
-            cantidadDisponible: true
-          },
-          orderBy: { fechaVencimiento: 'asc' }
-        }),
+          // Productos próximos a vencer
+          this.prisma.inventario.findMany({
+            where: {
+              cantidadDisponible: { gt: 0 },
+              fechaVencimiento: {
+                gte: hoy,
+                lte: en30Dias,
+              },
+            },
+            select: {
+              codigoInsumo: true,
+              nombreInsumo: true,
+              lote: true,
+              fechaVencimiento: true,
+              cantidadDisponible: true,
+            },
+            orderBy: { fechaVencimiento: 'asc' },
+          }),
 
-        // Productos con stock bajo
-        this.prisma.inventario.findMany({
-          where: {
-            cantidadDisponible: { lt: 10, gt: 0 }
-          },
-          select: {
-            codigoInsumo: true,
-            nombreInsumo: true,
-            cantidadDisponible: true
-          },
-          orderBy: { cantidadDisponible: 'asc' }
-        })
-      ]);
+          // Productos con stock bajo
+          this.prisma.inventario.findMany({
+            where: {
+              cantidadDisponible: { lt: 10, gt: 0 },
+            },
+            select: {
+              codigoInsumo: true,
+              nombreInsumo: true,
+              cantidadDisponible: true,
+            },
+            orderBy: { cantidadDisponible: 'asc' },
+          }),
+        ]);
 
       return {
-        productosVencidos: productosVencidos.map(item => ({
+        productosVencidos: productosVencidos.map((item) => ({
           codigoInsumo: item.codigoInsumo,
           nombreInsumo: item.nombreInsumo,
           lote: item.lote,
           fechaVencimiento: item.fechaVencimiento!,
-          diasVencido: Math.ceil((hoy.getTime() - item.fechaVencimiento!.getTime()) / (1000 * 60 * 60 * 24)),
-          cantidad: item.cantidadDisponible
+          diasVencido: Math.ceil(
+            (hoy.getTime() - item.fechaVencimiento!.getTime()) /
+              (1000 * 60 * 60 * 24),
+          ),
+          cantidad: item.cantidadDisponible,
         })),
-        
-        productosProximosVencer: productosProximosVencer.map(item => ({
+
+        productosProximosVencer: productosProximosVencer.map((item) => ({
           codigoInsumo: item.codigoInsumo,
           nombreInsumo: item.nombreInsumo,
           lote: item.lote,
           fechaVencimiento: item.fechaVencimiento!,
-          diasParaVencer: Math.ceil((item.fechaVencimiento!.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)),
-          cantidad: item.cantidadDisponible
+          diasParaVencer: Math.ceil(
+            (item.fechaVencimiento!.getTime() - hoy.getTime()) /
+              (1000 * 60 * 60 * 24),
+          ),
+          cantidad: item.cantidadDisponible,
         })),
-        
-        productosStockBajo: productosStockBajo.map(item => ({
+
+        productosStockBajo: productosStockBajo.map((item) => ({
           codigoInsumo: item.codigoInsumo,
           nombreInsumo: item.nombreInsumo,
           cantidadDisponible: item.cantidadDisponible,
-          stockMinimo: 10 // Valor configurable
-        }))
+          stockMinimo: 10, // Valor configurable
+        })),
       };
-
     } catch (error) {
       this.logger.error(`Error al obtener alertas: ${error.message}`);
       throw new HttpException(
         `Error al obtener alertas: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -607,41 +634,44 @@ export class InventarioService {
   /**
    * Obtener movimientos recientes
    */
-  async getMovimientosRecientes(limit: number = 10): Promise<MovimientosRecientesResponse[]> {
+  async getMovimientosRecientes(
+    limit: number = 10,
+  ): Promise<MovimientosRecientesResponse[]> {
     try {
       const movimientos = await this.prisma.historialInventario.findMany({
         take: limit,
         include: {
           CatalogoInsumos: {
             select: {
-              nombreInsumo: true
-            }
+              nombreInsumo: true,
+            },
           },
           Usuarios: {
             select: {
               nombres: true,
-              apellidos: true
-            }
-          }
+              apellidos: true,
+            },
+          },
         },
-        orderBy: { fechaMovimiento: 'desc' }
+        orderBy: { fechaMovimiento: 'desc' },
       });
 
-      return movimientos.map(item => ({
+      return movimientos.map((item) => ({
         fecha: item.fechaMovimiento,
         tipoMovimiento: item.tipoMovimiento,
         modulo: item.modulo,
         cantidad: item.cantidad,
         producto: item.CatalogoInsumos?.nombreInsumo ?? 'SIN CATÁLOGO',
         lote: item.lote,
-        usuario: `${item.Usuarios.nombres} ${item.Usuarios.apellidos}`
+        usuario: `${item.Usuarios.nombres} ${item.Usuarios.apellidos}`,
       }));
-
     } catch (error) {
-      this.logger.error(`Error al obtener movimientos recientes: ${error.message}`);
+      this.logger.error(
+        `Error al obtener movimientos recientes: ${error.message}`,
+      );
       throw new HttpException(
         `Error al obtener movimientos recientes: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }

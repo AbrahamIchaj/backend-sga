@@ -9,7 +9,7 @@ export class AuthService {
 
   constructor(
     private prisma: PrismaService,
-    private hashService: HashService
+    private hashService: HashService,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -25,12 +25,12 @@ export class AuthService {
               RolPermisos: {
                 where: { activo: true },
                 include: {
-                  Permisos: true
-                }
-              }
-            }
-          }
-        }
+                  Permisos: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!usuario) {
@@ -44,20 +44,26 @@ export class AuthService {
       }
 
       // Verificar contraseña usando HashService
-      const isPasswordValid = await this.hashService.verifyPassword(password, usuario.passwordHash);
+      const isPasswordValid = await this.hashService.verifyPassword(
+        password,
+        usuario.passwordHash,
+      );
       if (!isPasswordValid) {
-        this.logger.warn(`Intento de login con contraseña incorrecta: ${correo}`);
+        this.logger.warn(
+          `Intento de login con contraseña incorrecta: ${correo}`,
+        );
         throw new UnauthorizedException('Credenciales inválidas');
       }
 
       // Construir lista de permisos
-      const permisos = usuario.Roles?.RolPermisos
-        ?.filter(rp => rp.activo && rp.Permisos)
-        ?.map(rp => rp.Permisos.permiso) || [];
+      const permisos =
+        usuario.Roles?.RolPermisos?.filter(
+          (rp) => rp.activo && rp.Permisos,
+        )?.map((rp) => rp.Permisos.permiso) || [];
 
       // Construir respuesta sin password
       const { passwordHash: _, ...usuarioSinPassword } = usuario;
-      
+
       const response = {
         usuario: {
           ...usuarioSinPassword,
@@ -65,19 +71,20 @@ export class AuthService {
             idRoles: usuario.Roles?.idRoles,
             nombreRol: usuario.Roles?.nombreRol,
             descripcion: usuario.Roles?.descripcion,
-            permisos
-          }
-        }
+            permisos,
+          },
+        },
       };
 
-      this.logger.log(`Login exitoso para usuario: ${correo} con rol: ${usuario.Roles?.nombreRol}`);
+      this.logger.log(
+        `Login exitoso para usuario: ${correo} con rol: ${usuario.Roles?.nombreRol}`,
+      );
       return response;
-
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      
+
       this.logger.error(`Error en login: ${error.message}`, error.stack);
       throw new UnauthorizedException('Error de autenticación');
     }
@@ -86,7 +93,10 @@ export class AuthService {
   /**
    * Método para validar si un usuario tiene permisos específicos
    */
-  async validateUserPermissions(userId: number, requiredPermissions: string[]): Promise<boolean> {
+  async validateUserPermissions(
+    userId: number,
+    requiredPermissions: string[],
+  ): Promise<boolean> {
     try {
       const usuario = await this.prisma.usuarios.findUnique({
         where: { idUsuario: userId },
@@ -96,25 +106,27 @@ export class AuthService {
               RolPermisos: {
                 where: { activo: true },
                 include: {
-                  Permisos: true
-                }
-              }
-            }
-          }
-        }
+                  Permisos: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!usuario || !usuario.activo) {
         return false;
       }
 
-      const userPermissions = usuario.Roles?.RolPermisos
-        ?.filter(rp => rp.activo && rp.Permisos)
-        ?.map(rp => rp.Permisos.permiso) || [];
+      const userPermissions =
+        usuario.Roles?.RolPermisos?.filter(
+          (rp) => rp.activo && rp.Permisos,
+        )?.map((rp) => rp.Permisos.permiso) || [];
 
       // Verificar si tiene alguno de los permisos requeridos
-      return requiredPermissions.some(permission => userPermissions.includes(permission));
-
+      return requiredPermissions.some((permission) =>
+        userPermissions.includes(permission),
+      );
     } catch (error) {
       this.logger.error(`Error validando permisos: ${error.message}`);
       return false;

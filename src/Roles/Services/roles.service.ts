@@ -3,7 +3,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { Roles, Permisos } from '@prisma/client';
 import { CreateRolDto } from '../dto/create-rol.dto';
 import { UpdateRolDto } from '../dto/update-rol.dto';
-import { AsignarPermisosDto, RevocarPermisosDto, SincronizarPermisosDto } from '../dto/permisos-rol.dto';
+import {
+  AsignarPermisosDto,
+  RevocarPermisosDto,
+  SincronizarPermisosDto,
+} from '../dto/permisos-rol.dto';
 
 type RolConPermisos = Roles & {
   RolPermisos: Array<{
@@ -39,12 +43,12 @@ export class RolesService {
       return rol;
     } catch (error) {
       this.logger.error(`Error al crear rol: ${error.message}`);
-      
+
       // Manejar error de duplicado (unique constraint)
       if (error.code === 'P2002') {
         throw new Error(`El rol "${createRolDto.nombreRol}" ya existe`);
       }
-      
+
       throw error;
     }
   }
@@ -119,14 +123,20 @@ export class RolesService {
     }
   }
 
-
-  async update(id: number, updateRolDto: UpdateRolDto): Promise<RolConPermisos> {
+  async update(
+    id: number,
+    updateRolDto: UpdateRolDto,
+  ): Promise<RolConPermisos> {
     try {
       const rol = await this.prisma.roles.update({
         where: { idRoles: id },
         data: {
-          ...(updateRolDto.nombreRol && { nombreRol: updateRolDto.nombreRol.trim() }),
-          ...(updateRolDto.descripcion && { descripcion: updateRolDto.descripcion.trim() }),
+          ...(updateRolDto.nombreRol && {
+            nombreRol: updateRolDto.nombreRol.trim(),
+          }),
+          ...(updateRolDto.descripcion && {
+            descripcion: updateRolDto.descripcion.trim(),
+          }),
         },
         include: {
           RolPermisos: {
@@ -150,13 +160,15 @@ export class RolesService {
       this.logger.log(`Rol actualizado con ID: ${id}`);
       return rol;
     } catch (error) {
-      this.logger.error(`Error al actualizar rol con ID ${id}: ${error.message}`);
-      
+      this.logger.error(
+        `Error al actualizar rol con ID ${id}: ${error.message}`,
+      );
+
       // Manejar error de duplicado (unique constraint)
       if (error.code === 'P2002') {
         throw new Error(`El rol "${updateRolDto.nombreRol}" ya existe`);
       }
-      
+
       throw error;
     }
   }
@@ -170,8 +182,12 @@ export class RolesService {
       });
 
       if (usuariosConRol.length > 0) {
-        const nombresUsuarios = usuariosConRol.map(u => `${u.nombres} ${u.apellidos}`).join(', ');
-        throw new Error(`No se puede eliminar el rol porque está asignado a los siguientes usuarios: ${nombresUsuarios}`);
+        const nombresUsuarios = usuariosConRol
+          .map((u) => `${u.nombres} ${u.apellidos}`)
+          .join(', ');
+        throw new Error(
+          `No se puede eliminar el rol porque está asignado a los siguientes usuarios: ${nombresUsuarios}`,
+        );
       }
 
       // Eliminar primero las relaciones con permisos
@@ -195,7 +211,10 @@ export class RolesService {
   // MÉTODOS AVANZADOS PARA GESTIÓN DE PERMISOS
   // ================================
 
-  async asignarPermisos(rolId: number, asignarPermisosDto: AsignarPermisosDto): Promise<RolConPermisos> {
+  async asignarPermisos(
+    rolId: number,
+    asignarPermisosDto: AsignarPermisosDto,
+  ): Promise<RolConPermisos> {
     try {
       // Verificar que el rol existe
       const rolExiste = await this.prisma.roles.findUnique({
@@ -214,14 +233,18 @@ export class RolesService {
       });
 
       if (permisosExistentes.length !== asignarPermisosDto.permisos.length) {
-        const idsEncontrados = permisosExistentes.map(p => p.idPermisos);
-        const idsFaltantes = asignarPermisosDto.permisos.filter(id => !idsEncontrados.includes(id));
-        throw new Error(`Los siguientes permisos no existen: ${idsFaltantes.join(', ')}`);
+        const idsEncontrados = permisosExistentes.map((p) => p.idPermisos);
+        const idsFaltantes = asignarPermisosDto.permisos.filter(
+          (id) => !idsEncontrados.includes(id),
+        );
+        throw new Error(
+          `Los siguientes permisos no existen: ${idsFaltantes.join(', ')}`,
+        );
       }
 
       // Asignar permisos (skipDuplicates evita errores por permisos ya asignados)
       await this.prisma.rolPermisos.createMany({
-        data: asignarPermisosDto.permisos.map(idPermiso => ({
+        data: asignarPermisosDto.permisos.map((idPermiso) => ({
           idRoles: rolId,
           idPermisos: idPermiso,
           activo: true,
@@ -229,7 +252,9 @@ export class RolesService {
         skipDuplicates: true,
       });
 
-      this.logger.log(`Permisos asignados al rol ${rolId}: ${asignarPermisosDto.permisos.join(', ')}`);
+      this.logger.log(
+        `Permisos asignados al rol ${rolId}: ${asignarPermisosDto.permisos.join(', ')}`,
+      );
 
       // Retornar rol actualizado con permisos
       const rolActualizado = await this.findOne(rolId);
@@ -238,12 +263,17 @@ export class RolesService {
       }
       return rolActualizado;
     } catch (error) {
-      this.logger.error(`Error al asignar permisos al rol ${rolId}: ${error.message}`);
+      this.logger.error(
+        `Error al asignar permisos al rol ${rolId}: ${error.message}`,
+      );
       throw error;
     }
   }
 
-  async revocarPermisos(rolId: number, revocarPermisosDto: RevocarPermisosDto): Promise<RolConPermisos> {
+  async revocarPermisos(
+    rolId: number,
+    revocarPermisosDto: RevocarPermisosDto,
+  ): Promise<RolConPermisos> {
     try {
       // Verificar que el rol existe
       const rolExiste = await this.prisma.roles.findUnique({
@@ -262,7 +292,9 @@ export class RolesService {
         },
       });
 
-      this.logger.log(`Permisos revocados del rol ${rolId}: ${revocarPermisosDto.permisos.join(', ')}`);
+      this.logger.log(
+        `Permisos revocados del rol ${rolId}: ${revocarPermisosDto.permisos.join(', ')}`,
+      );
 
       // Retornar rol actualizado
       const rolActualizado = await this.findOne(rolId);
@@ -271,12 +303,17 @@ export class RolesService {
       }
       return rolActualizado;
     } catch (error) {
-      this.logger.error(`Error al revocar permisos del rol ${rolId}: ${error.message}`);
+      this.logger.error(
+        `Error al revocar permisos del rol ${rolId}: ${error.message}`,
+      );
       throw error;
     }
   }
 
-  async sincronizarPermisos(rolId: number, sincronizarPermisosDto: SincronizarPermisosDto): Promise<RolConPermisos> {
+  async sincronizarPermisos(
+    rolId: number,
+    sincronizarPermisosDto: SincronizarPermisosDto,
+  ): Promise<RolConPermisos> {
     try {
       // Usar transacción para garantizar atomicidad
       return await this.prisma.$transaction(async (prisma) => {
@@ -297,10 +334,16 @@ export class RolesService {
             },
           });
 
-          if (permisosExistentes.length !== sincronizarPermisosDto.permisos.length) {
-            const idsEncontrados = permisosExistentes.map(p => p.idPermisos);
-            const idsFaltantes = sincronizarPermisosDto.permisos.filter(id => !idsEncontrados.includes(id));
-            throw new Error(`Los siguientes permisos no existen: ${idsFaltantes.join(', ')}`);
+          if (
+            permisosExistentes.length !== sincronizarPermisosDto.permisos.length
+          ) {
+            const idsEncontrados = permisosExistentes.map((p) => p.idPermisos);
+            const idsFaltantes = sincronizarPermisosDto.permisos.filter(
+              (id) => !idsEncontrados.includes(id),
+            );
+            throw new Error(
+              `Los siguientes permisos no existen: ${idsFaltantes.join(', ')}`,
+            );
           }
         }
 
@@ -312,7 +355,7 @@ export class RolesService {
         // 2. Asignar SOLO los permisos especificados
         if (sincronizarPermisosDto.permisos.length > 0) {
           await prisma.rolPermisos.createMany({
-            data: sincronizarPermisosDto.permisos.map(idPermiso => ({
+            data: sincronizarPermisosDto.permisos.map((idPermiso) => ({
               idRoles: rolId,
               idPermisos: idPermiso,
               activo: true,
@@ -320,7 +363,9 @@ export class RolesService {
           });
         }
 
-        this.logger.log(`Permisos sincronizados para rol ${rolId}. Nuevos permisos: ${sincronizarPermisosDto.permisos.join(', ')}`);
+        this.logger.log(
+          `Permisos sincronizados para rol ${rolId}. Nuevos permisos: ${sincronizarPermisosDto.permisos.join(', ')}`,
+        );
 
         // 3. Retornar rol actualizado
         const rolActualizado = await prisma.roles.findUnique({
@@ -351,7 +396,9 @@ export class RolesService {
         return rolActualizado;
       });
     } catch (error) {
-      this.logger.error(`Error al sincronizar permisos del rol ${rolId}: ${error.message}`);
+      this.logger.error(
+        `Error al sincronizar permisos del rol ${rolId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -359,7 +406,7 @@ export class RolesService {
   async obtenerPermisosDeRol(rolId: number): Promise<Permisos[]> {
     try {
       const rolPermisos = await this.prisma.rolPermisos.findMany({
-        where: { 
+        where: {
           idRoles: rolId,
           activo: true, // Solo permisos activos
         },
@@ -368,17 +415,24 @@ export class RolesService {
         },
       });
 
-      const permisos = rolPermisos.map(rp => rp.Permisos);
-      this.logger.log(`Se encontraron ${permisos.length} permisos activos para el rol ${rolId}`);
-      
+      const permisos = rolPermisos.map((rp) => rp.Permisos);
+      this.logger.log(
+        `Se encontraron ${permisos.length} permisos activos para el rol ${rolId}`,
+      );
+
       return permisos;
     } catch (error) {
-      this.logger.error(`Error al obtener permisos del rol ${rolId}: ${error.message}`);
+      this.logger.error(
+        `Error al obtener permisos del rol ${rolId}: ${error.message}`,
+      );
       throw error;
     }
   }
 
-  async verificarPermiso(rolId: number, nombrePermiso: string): Promise<boolean> {
+  async verificarPermiso(
+    rolId: number,
+    nombrePermiso: string,
+  ): Promise<boolean> {
     try {
       const permisoExiste = await this.prisma.rolPermisos.findFirst({
         where: {
@@ -391,11 +445,15 @@ export class RolesService {
       });
 
       const tienePermiso = permisoExiste !== null;
-      this.logger.log(`Rol ${rolId} ${tienePermiso ? 'TIENE' : 'NO TIENE'} el permiso "${nombrePermiso}"`);
-      
+      this.logger.log(
+        `Rol ${rolId} ${tienePermiso ? 'TIENE' : 'NO TIENE'} el permiso "${nombrePermiso}"`,
+      );
+
       return tienePermiso;
     } catch (error) {
-      this.logger.error(`Error al verificar permiso "${nombrePermiso}" para rol ${rolId}: ${error.message}`);
+      this.logger.error(
+        `Error al verificar permiso "${nombrePermiso}" para rol ${rolId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -435,9 +493,10 @@ export class RolesService {
       this.logger.log(`Búsqueda "${query}" encontró ${roles.length} roles`);
       return roles;
     } catch (error) {
-      this.logger.error(`Error en búsqueda de roles con query "${query}": ${error.message}`);
+      this.logger.error(
+        `Error en búsqueda de roles con query "${query}": ${error.message}`,
+      );
       throw error;
     }
   }
-
 }

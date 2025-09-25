@@ -7,6 +7,6 @@ import { PrismaModule } from '../../prisma/prisma.module';
   imports: [PrismaModule],
   controllers: [ReajustesController],
   providers: [ReajustesService],
-  exports: [ReajustesService]
+  exports: [ReajustesService],
 })
 export class ReajustesModule {}

@@ -60,17 +60,24 @@ export class ServiciosService {
 
       return servicio;
     } catch (error) {
-      this.logger.error(`Error al obtener servicio con ID ${id}: ${error.message}`);
+      this.logger.error(
+        `Error al obtener servicio con ID ${id}: ${error.message}`,
+      );
       throw error;
     }
   }
 
-  async update(id: number, updateServicioDto: UpdateServicioDto): Promise<Servicios> {
+  async update(
+    id: number,
+    updateServicioDto: UpdateServicioDto,
+  ): Promise<Servicios> {
     try {
       const servicio = await this.prisma.servicios.update({
         where: { idServicio: id },
         data: {
-          ...(updateServicioDto.nombre && { nombre: updateServicioDto.nombre.trim() }),
+          ...(updateServicioDto.nombre && {
+            nombre: updateServicioDto.nombre.trim(),
+          }),
           ...(updateServicioDto.observaciones !== undefined && {
             observaciones: updateServicioDto.observaciones?.trim() || null,
           }),
@@ -80,7 +87,9 @@ export class ServiciosService {
       this.logger.log(`Servicio actualizado con ID: ${id}`);
       return servicio;
     } catch (error) {
-      this.logger.error(`Error al actualizar servicio con ID ${id}: ${error.message}`);
+      this.logger.error(
+        `Error al actualizar servicio con ID ${id}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -93,7 +102,9 @@ export class ServiciosService {
 
       this.logger.log(`Servicio eliminado con ID: ${id}`);
     } catch (error) {
-      this.logger.error(`Error al eliminar servicio con ID ${id}: ${error.message}`);
+      this.logger.error(
+        `Error al eliminar servicio con ID ${id}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -127,7 +138,9 @@ export class ServiciosService {
         take: 50,
       });
 
-      this.logger.log(`Búsqueda "${query}" encontró ${servicios.length} resultados`);
+      this.logger.log(
+        `Búsqueda "${query}" encontró ${servicios.length} resultados`,
+      );
       return servicios;
     } catch (error) {
       this.logger.error(`Error en búsqueda "${query}": ${error.message}`);

@@ -1,8 +1,8 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
   Query,
   HttpStatus,
   HttpCode,
@@ -20,19 +20,27 @@ export class UsuariosReportesController {
 
   // BÚSQUEDA AVANZADA
   @Get('busqueda/avanzada')
-  async searchAdvanced(@Query() query: { 
-    nombres?: string; 
-    apellidos?: string; 
-    correo?: string; 
-    rol?: string; 
-    activo?: string;
-    fechaCreacionInicio?: string;
-    fechaCreacionFin?: string;
-  }) {
+  async searchAdvanced(
+    @Query()
+    query: {
+      nombres?: string;
+      apellidos?: string;
+      correo?: string;
+      rol?: string;
+      activo?: string;
+      fechaCreacionInicio?: string;
+      fechaCreacionFin?: string;
+    },
+  ) {
     try {
       // Validar parámetros de búsqueda
-      const searchTerms = [query.nombres, query.apellidos, query.correo, query.rol]
-        .filter(term => term && term.trim())
+      const searchTerms = [
+        query.nombres,
+        query.apellidos,
+        query.correo,
+        query.rol,
+      ]
+        .filter((term) => term && term.trim())
         .join(' ');
 
       let usuarios;
@@ -49,21 +57,23 @@ export class UsuariosReportesController {
       // Filtrar por estado activo
       if (query.activo !== undefined) {
         const isActive = query.activo.toLowerCase() === 'true';
-        usuariosFiltrados = usuariosFiltrados.filter(user => user.activo === isActive);
+        usuariosFiltrados = usuariosFiltrados.filter(
+          (user) => user.activo === isActive,
+        );
       }
 
       // Filtrar por rango de fechas
       if (query.fechaCreacionInicio) {
         const fechaInicio = new Date(query.fechaCreacionInicio);
-        usuariosFiltrados = usuariosFiltrados.filter(user => 
-          new Date(user.fechaCreacion) >= fechaInicio
+        usuariosFiltrados = usuariosFiltrados.filter(
+          (user) => new Date(user.fechaCreacion) >= fechaInicio,
         );
       }
 
       if (query.fechaCreacionFin) {
         const fechaFin = new Date(query.fechaCreacionFin);
-        usuariosFiltrados = usuariosFiltrados.filter(user => 
-          new Date(user.fechaCreacion) <= fechaFin
+        usuariosFiltrados = usuariosFiltrados.filter(
+          (user) => new Date(user.fechaCreacion) <= fechaFin,
         );
       }
 
@@ -95,7 +105,7 @@ export class UsuariosReportesController {
       }
 
       const usuarios = await this.usuariosService.search(rol.trim());
-      
+
       return {
         success: true,
         message: `Se encontraron ${usuarios.length} usuarios con rol: ${rol}`,
@@ -115,8 +125,8 @@ export class UsuariosReportesController {
   async getInactiveUsers() {
     try {
       const todosUsuarios = await this.usuariosService.findAll();
-      const usuariosInactivos = todosUsuarios.filter(user => !user.activo);
-      
+      const usuariosInactivos = todosUsuarios.filter((user) => !user.activo);
+
       return {
         success: true,
         message: `Se encontraron ${usuariosInactivos.length} usuarios inactivos`,
@@ -124,11 +134,16 @@ export class UsuariosReportesController {
         stats: {
           totalUsuarios: todosUsuarios.length,
           usuariosInactivos: usuariosInactivos.length,
-          porcentajeInactivos: ((usuariosInactivos.length / todosUsuarios.length) * 100).toFixed(2),
+          porcentajeInactivos: (
+            (usuariosInactivos.length / todosUsuarios.length) *
+            100
+          ).toFixed(2),
         },
       };
     } catch (error) {
-      this.logger.error(`Error al obtener usuarios inactivos: ${error.message}`);
+      this.logger.error(
+        `Error al obtener usuarios inactivos: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -141,7 +156,7 @@ export class UsuariosReportesController {
   async getEstadisticas() {
     try {
       const estadisticas = await this.usuariosService.getEstadisticas();
-      
+
       return {
         success: true,
         message: 'Estadísticas obtenidas exitosamente',
@@ -158,22 +173,24 @@ export class UsuariosReportesController {
     }
   }
 
-
   @Get('reportes/exportarUsuarios')
-  async exportUsersReport(@Query() options: {
-    formato?: 'json' | 'csv';
-    incluirInactivos?: string;
-    camposPersonalizados?: string;
-  }) {
+  async exportUsersReport(
+    @Query()
+    options: {
+      formato?: 'json' | 'csv';
+      incluirInactivos?: string;
+      camposPersonalizados?: string;
+    },
+  ) {
     try {
       const incluirInactivos = options.incluirInactivos === 'true';
       const usuarios = await this.usuariosService.findAll();
-      
-      let usuariosFiltrados = incluirInactivos 
-        ? usuarios 
-        : usuarios.filter(u => u.activo);
 
-      const reportData = usuariosFiltrados.map(usuario => ({
+      const usuariosFiltrados = incluirInactivos
+        ? usuarios
+        : usuarios.filter((u) => u.activo);
+
+      const reportData = usuariosFiltrados.map((usuario) => ({
         id: usuario.idUsuario,
         nombres: usuario.nombres,
         apellidos: usuario.apellidos,

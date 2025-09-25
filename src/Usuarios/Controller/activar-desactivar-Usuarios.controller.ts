@@ -1,15 +1,11 @@
-import { 
-  Controller, 
-  Put, 
-  Param, 
-  ParseIntPipe,
-  Logger,
-} from '@nestjs/common';
+import { Controller, Put, Param, ParseIntPipe, Logger } from '@nestjs/common';
 import { UsuariosService } from '../Services/usuarios.service';
 
 @Controller('usuarios/manage')
 export class ActivarDesactivarUsuariosController {
-  private readonly logger = new Logger(ActivarDesactivarUsuariosController.name);
+  private readonly logger = new Logger(
+    ActivarDesactivarUsuariosController.name,
+  );
 
   constructor(private readonly usuariosService: UsuariosService) {}
 
@@ -17,7 +13,7 @@ export class ActivarDesactivarUsuariosController {
   async activateUser(@Param('id', ParseIntPipe) id: number) {
     try {
       const usuario = await this.usuariosService.update(id, { activo: true });
-      
+
       return {
         success: true,
         message: 'Usuario activado exitosamente',
@@ -38,7 +34,7 @@ export class ActivarDesactivarUsuariosController {
   async deactivateUser(@Param('id', ParseIntPipe) id: number) {
     try {
       const usuario = await this.usuariosService.update(id, { activo: false });
-      
+
       return {
         success: true,
         message: 'Usuario desactivado exitosamente',

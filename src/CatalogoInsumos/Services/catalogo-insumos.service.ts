@@ -18,7 +18,10 @@ export class CatalogoInsumosService {
 
   constructor(private prisma: PrismaService) {}
 
-  async processCSVFile(filePath: string, abortSignal?: AbortSignal): Promise<{ success: number; errors: number; errorDetails: string[] }> {
+  async processCSVFile(
+    filePath: string,
+    abortSignal?: AbortSignal,
+  ): Promise<{ success: number; errors: number; errorDetails: string[] }> {
     const results = { success: 0, errors: 0, errorDetails: [] as string[] };
 
     try {
@@ -30,13 +33,13 @@ export class CatalogoInsumosService {
       };
 
       checkCancellation(); // Verificar antes de empezar
-      
+
       // Verificar conexión a la base de datos y tabla
       try {
         await this.prisma.$queryRaw`SELECT 1`;
         this.logger.log('Conexión a la base de datos verificada');
         checkCancellation(); // Verificar después de conectar DB
-        
+
         try {
           const tablas = await this.prisma.$queryRaw`
             SELECT tablename FROM pg_tables WHERE schemaname = 'public'
@@ -46,18 +49,21 @@ export class CatalogoInsumosService {
           this.logger.error('Error al consultar tablas:', error.message);
         }
       } catch (dbConnError) {
-        this.logger.error('Error de conexión a la base de datos:', dbConnError.message);
+        this.logger.error(
+          'Error de conexión a la base de datos:',
+          dbConnError.message,
+        );
         throw new Error(`Error de conexión: ${dbConnError.message}`);
       }
-      
+
       checkCancellation(); // Verificar antes de leer archivo
       // Leer archivo con codificación correcta para caracteres especiales
       const fileContent = await readFile(filePath, { encoding: 'utf-8' });
-      
+
       // Eliminar la primera línea (título del catálogo)
       const lines = fileContent.split('\n');
       const contentWithoutHeader = lines.slice(1).join('\n');
-      
+
       // Analizar CSV
       const records = await new Promise<CsvRecord[]>((resolve, reject) => {
         const results: CsvRecord[] = [];
@@ -67,41 +73,43 @@ export class CatalogoInsumosService {
           skip_empty_lines: true,
           trim: true,
         })
-        .on('data', (record: CsvRecord) => results.push(record))
-        .on('error', (err: Error) => reject(err))
-        .on('end', () => resolve(results));
+          .on('data', (record: CsvRecord) => results.push(record))
+          .on('error', (err: Error) => reject(err))
+          .on('end', () => resolve(results));
       });
-      
+
       checkCancellation(); // Verificar después de parsear CSV
-      
+
       this.logger.log(`Se encontraron ${records.length} registros en el CSV`);
-      
+
       // Procesar cada registro
       for (let i = 0; i < records.length; i++) {
         const record = records[i];
-        
+
         // Verificar cancelación cada 10 registros para mejor performance
         if (i % 10 === 0) {
           checkCancellation();
         }
-        
+
         try {
           const codigoInsumoStr = record['CÓDIGO DE INSUMO'];
           if (!codigoInsumoStr) {
             throw new Error('Falta el código de insumo');
           }
-          
+
           const codigoInsumo = parseInt(codigoInsumoStr, 10);
           if (isNaN(codigoInsumo)) {
             throw new Error(`Código de insumo inválido: ${codigoInsumoStr}`);
           }
-          
+
           // Validar nombre de insumo
           const nombreInsumo = record['NOMBRE']?.trim();
           if (!nombreInsumo) {
-            throw new Error(`Nombre de insumo vacío para código: ${codigoInsumo}`);
+            throw new Error(
+              `Nombre de insumo vacío para código: ${codigoInsumo}`,
+            );
           }
-          
+
           // Preparar otros campos
           let renglon: number | null = null;
           if (record['RENGLÓN']) {
@@ -110,7 +118,7 @@ export class CatalogoInsumosService {
               renglon = renglonNum;
             }
           }
-          
+
           let codigoPresentacion: number | null = null;
           if (record['CÓDIGO DE PRESENTACIÓN']) {
             const cpNum = parseInt(record['CÓDIGO DE PRESENTACIÓN'], 10);
@@ -120,20 +128,31 @@ export class CatalogoInsumosService {
           }
           // Normalizar valores para evitar NULLs si la tabla no los acepta
           const caracteristicasVal = record['CARACTERÍSTICAS']?.trim() || '';
-          const nombrePresentacionVal = record['NOMBRE DE LA PRESENTACIÓN']?.trim() || '';
-          const unidadMedidaVal = record['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN']?.trim() || '';
+          const nombrePresentacionVal =
+            record['NOMBRE DE LA PRESENTACIÓN']?.trim() || '';
+          const unidadMedidaVal =
+            record['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN']?.trim() ||
+            '';
           const codigoPresentacionVal = codigoPresentacion ?? 0;
           const renglonVal = renglon ?? 0;
-          
+
           try {
-            const nombrePresentacion = record['NOMBRE DE LA PRESENTACIÓN']?.trim() || null;
-            const unidadMedida = record['CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN']?.trim() || null;
+            const nombrePresentacion =
+              record['NOMBRE DE LA PRESENTACIÓN']?.trim() || null;
+            const unidadMedida =
+              record[
+                'CANTIDAD Y UNIDAD DE MEDIDA DE LA PRESENTACIÓN'
+              ]?.trim() || null;
 
             let existingRecords: any[] = [];
 
             if (codigoPresentacion) {
               const sqlSelectByCP = `SELECT * FROM "CatalogoInsumos" WHERE "codigoInsumo" = $1 AND "codigoPresentacion" = $2`;
-              existingRecords = await this.prisma.$queryRawUnsafe(sqlSelectByCP, codigoInsumo, codigoPresentacion) as any[];
+              existingRecords = (await this.prisma.$queryRawUnsafe(
+                sqlSelectByCP,
+                codigoInsumo,
+                codigoPresentacion,
+              )) as any[];
             } else if (nombrePresentacion || unidadMedida) {
               const sqlSelectByNames = `
                 SELECT * FROM "CatalogoInsumos"
@@ -141,7 +160,12 @@ export class CatalogoInsumosService {
                   AND COALESCE("nombrePresentacion", '') = $2
                   AND COALESCE("unidadMedida", '') = $3
               `;
-              existingRecords = await this.prisma.$queryRawUnsafe(sqlSelectByNames, codigoInsumo, nombrePresentacion || '', unidadMedida || '') as any[];
+              existingRecords = (await this.prisma.$queryRawUnsafe(
+                sqlSelectByNames,
+                codigoInsumo,
+                nombrePresentacion || '',
+                unidadMedida || '',
+              )) as any[];
             } else {
               // Sin datos de presentación: no podemos asegurar unicidad, insertamos de todas formas
               existingRecords = [];
@@ -172,10 +196,12 @@ export class CatalogoInsumosService {
                   nombrePresentacionVal,
                   unidadMedidaVal,
                   codigoPresentacionVal,
-                  idToUpdate
+                  idToUpdate,
                 );
 
-                this.logger.debug(`Actualizado insumo id=${idToUpdate} codigo=${codigoInsumo}`);
+                this.logger.debug(
+                  `Actualizado insumo id=${idToUpdate} codigo=${codigoInsumo}`,
+                );
               } else {
                 // Fallback: si por alguna razón no hay id, evitar actualizar todos y hacer insert
                 const sqlInsertFallback = `
@@ -192,10 +218,12 @@ export class CatalogoInsumosService {
                   caracteristicasVal,
                   nombrePresentacionVal,
                   unidadMedidaVal,
-                  codigoPresentacionVal
+                  codigoPresentacionVal,
                 );
 
-                this.logger.debug(`Creado (fallback) nuevo insumo con codigo: ${codigoInsumo}`);
+                this.logger.debug(
+                  `Creado (fallback) nuevo insumo con codigo: ${codigoInsumo}`,
+                );
               }
             } else {
               // No existe presentación idéntica: insertar nueva fila
@@ -219,15 +247,17 @@ export class CatalogoInsumosService {
                 caracteristicasVal,
                 nombrePresentacionVal,
                 unidadMedidaVal,
-                codigoPresentacionVal
+                codigoPresentacionVal,
               );
 
-              this.logger.debug(`Creado nuevo insumo con codigo: ${codigoInsumo}`);
+              this.logger.debug(
+                `Creado nuevo insumo con codigo: ${codigoInsumo}`,
+              );
             }
           } catch (dbError) {
             throw new Error(`Error de base de datos: ${dbError.message}`);
           }
-          
+
           results.success++;
         } catch (error) {
           results.errors++;
@@ -235,11 +265,16 @@ export class CatalogoInsumosService {
           this.logger.error(`Error procesando registro: ${error.message}`);
         }
       }
-      
-      this.logger.log(`Proceso CSV completado: ${results.success} exitosos, ${results.errors} errores`);
+
+      this.logger.log(
+        `Proceso CSV completado: ${results.success} exitosos, ${results.errors} errores`,
+      );
       return results;
     } catch (error) {
-      this.logger.error(`Error general en el proceso: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error general en el proceso: ${error.message}`,
+        error.stack,
+      );
       results.errors++;
       results.errorDetails.push(`Error general: ${error.message}`);
       return results;
@@ -253,12 +288,12 @@ export class CatalogoInsumosService {
         SELECT * FROM "CatalogoInsumos" 
         ORDER BY "codigoInsumo" ASC, "idCatalogoInsumos" ASC
       `;
-      
+
       const insumos = await this.prisma.$queryRawUnsafe(sql);
       return insumos as CatalogoInsumos[];
     } catch (error) {
       this.logger.error(`Error al obtener insumos: ${error.message}`);
-      
+
       // Intentar diagnosticar el problema
       try {
         const sql = `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`;
@@ -267,11 +302,29 @@ export class CatalogoInsumosService {
       } catch (diagError) {
         this.logger.error(`Error al diagnosticar: ${diagError.message}`);
       }
-      
+
       throw error;
     }
   }
-  
+
+  async findByCodigo(codigo: number): Promise<CatalogoInsumos[]> {
+    try {
+      if (!Number.isInteger(codigo)) {
+        return [];
+      }
+
+      return await this.prisma.catalogoInsumos.findMany({
+        where: { codigoInsumo: codigo },
+        orderBy: [{ codigoInsumo: 'asc' }, { codigoPresentacion: 'asc' }],
+      });
+    } catch (error) {
+      this.logger.error(
+        `Error al buscar catálogo por código ${codigo}: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
   async search(query: string): Promise<CatalogoInsumos[]> {
     try {
       if (!query.trim()) {
@@ -306,7 +359,9 @@ export class CatalogoInsumosService {
         take: 50, // Limitar resultados para performance
       });
 
-      this.logger.log(`Búsqueda "${query}" encontró ${insumos.length} resultados`);
+      this.logger.log(
+        `Búsqueda "${query}" encontró ${insumos.length} resultados`,
+      );
       return insumos;
     } catch (error) {
       this.logger.error(`Error en búsqueda "${query}": ${error.message}`);
@@ -318,32 +373,33 @@ export class CatalogoInsumosService {
     try {
       // 1. Probar conexión básica
       await this.prisma.$queryRaw`SELECT 1 as test`;
-      
+
       // 2. Listar todas las tablas
-      const tablas = await this.prisma.$queryRaw`
+      const tablas = await this.prisma.$queryRaw<Array<{ tablename: string }>>`
         SELECT tablename FROM pg_catalog.pg_tables 
         WHERE schemaname = 'public'
-      ` as Array<{tablename: string}>;
-      
+      `;
+
       // 3. Buscar la tabla de catálogo de insumos (sin importar mayúsculas/minúsculas)
-      const nombreTablas = tablas.map(t => ({ 
-        original: t.tablename, 
-        lowercase: t.tablename.toLowerCase() 
+      const nombreTablas = tablas.map((t) => ({
+        original: t.tablename,
+        lowercase: t.tablename.toLowerCase(),
       }));
-      
-      const tablasInsumos = nombreTablas.filter(t => 
-        t.lowercase.includes('catalogo') && t.lowercase.includes('insumo')
+
+      const tablasInsumos = nombreTablas.filter(
+        (t) =>
+          t.lowercase.includes('catalogo') && t.lowercase.includes('insumo'),
       );
-      
+
       // 4. Si encontramos la tabla, obtener detalles
       let estructuraTabla: any[] = [];
       let muestraRegistro: any[] = [];
       let totalRegistros = 0;
       let nombreTablaReal: string | null = null;
-      
+
       if (tablasInsumos.length > 0) {
         nombreTablaReal = tablasInsumos[0].original;
-        
+
         // Obtener estructura
         const sqlColumnas = `
           SELECT column_name, data_type, is_nullable
@@ -351,47 +407,62 @@ export class CatalogoInsumosService {
           WHERE table_schema = 'public' AND table_name = '${nombreTablaReal}'
           ORDER BY ordinal_position
         `;
-        const columnas = await this.prisma.$queryRawUnsafe(sqlColumnas) as any[];
-        
+        const columnas = (await this.prisma.$queryRawUnsafe(
+          sqlColumnas,
+        )) as any[];
+
         estructuraTabla = columnas;
-        
+
         // Contar registros
         const sqlConteo = `SELECT COUNT(*) as total FROM "${nombreTablaReal}"`;
-        const conteo = await this.prisma.$queryRawUnsafe(sqlConteo) as Array<{total: number}>;
-        
+        const conteo = (await this.prisma.$queryRawUnsafe(sqlConteo)) as Array<{
+          total: number;
+        }>;
+
         totalRegistros = conteo[0]?.total || 0;
-        
+
         // Obtener muestra
         if (totalRegistros > 0) {
           const sqlMuestra = `SELECT * FROM "${nombreTablaReal}" LIMIT 1`;
-          muestraRegistro = await this.prisma.$queryRawUnsafe(sqlMuestra) as any[];
+          muestraRegistro = (await this.prisma.$queryRawUnsafe(
+            sqlMuestra,
+          )) as any[];
         }
       }
-      
+
       // Intentar consultas directas con diferentes nombres de tabla
-      const pruebasNombres = ['catalogoinsumos', 'CatalogoInsumos', 'catalogoInsumos', 'catalogo_insumos'];
+      const pruebasNombres = [
+        'catalogoinsumos',
+        'CatalogoInsumos',
+        'catalogoInsumos',
+        'catalogo_insumos',
+      ];
       const resultadosPruebas: Record<string, string> = {};
-      
+
       for (const nombre of pruebasNombres) {
         try {
           // Usamos una forma alternativa de consulta SQL directa para evitar problemas con las comillas
-          let sql = `SELECT COUNT(*) as total FROM "${nombre}"`;
-          const resultado = await this.prisma.$queryRawUnsafe(sql) as Array<{total: number}>;
-          resultadosPruebas[nombre] = `Realizado (${resultado[0]?.total || 0} registros)`;
+          const sql = `SELECT COUNT(*) as total FROM "${nombre}"`;
+          const resultado = (await this.prisma.$queryRawUnsafe(sql)) as Array<{
+            total: number;
+          }>;
+          resultadosPruebas[nombre] =
+            `Realizado (${resultado[0]?.total || 0} registros)`;
         } catch (error) {
-          resultadosPruebas[nombre] = `Error: ${error instanceof Error ? error.message : 'Desconocido'}`;
+          resultadosPruebas[nombre] =
+            `Error: ${error instanceof Error ? error.message : 'Desconocido'}`;
         }
       }
-      
+
       // Devolver toda la información recopilada
       return {
         conexion: '✅ Conexión establecida',
-        tablas: tablas.map(t => t.tablename),
+        tablas: tablas.map((t) => t.tablename),
         tablaCatalogo: nombreTablaReal || 'No encontrada',
         totalRegistros,
         estructuraTabla,
         muestraRegistro: muestraRegistro.length > 0 ? muestraRegistro[0] : null,
-        pruebasNombres: resultadosPruebas
+        pruebasNombres: resultadosPruebas,
       };
     } catch (error) {
       this.logger.error(`Error de depuración: ${error.message}`);

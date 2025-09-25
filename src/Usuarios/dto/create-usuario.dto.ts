@@ -1,5 +1,12 @@
 import { Transform, Type } from 'class-transformer';
-import { IsString, IsEmail, IsNumber, IsOptional, IsBoolean, MinLength } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsNumber,
+  IsOptional,
+  IsBoolean,
+  MinLength,
+} from 'class-validator';
 
 export class CreateUsuarioDto {
   @IsString()

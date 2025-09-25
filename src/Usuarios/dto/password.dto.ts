@@ -5,11 +5,11 @@ export class ChangePasswordDto {
 
 export class AdminChangePasswordDto {
   usuarioId: number;
-  newPassword?: string;       
-  generarTemporal?: boolean; 
-  notificarEmail?: boolean; 
-  adminEmail: string;       
-  ip?: string;           
+  newPassword?: string;
+  generarTemporal?: boolean;
+  notificarEmail?: boolean;
+  adminEmail: string;
+  ip?: string;
 }
 
 export class GenerateTemporaryPasswordDto {

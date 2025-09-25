@@ -12,9 +12,9 @@ import { ReajustesModule } from './Reajustes/Module/reajustes.module';
 
 @Module({
   imports: [
-    CatalogoInsumosModule, 
-    ServiciosModule, 
-    PermisosModule, 
+    CatalogoInsumosModule,
+    ServiciosModule,
+    PermisosModule,
     RolesModule,
     UsuariosModule,
     ComprasModule,

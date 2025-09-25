@@ -23,12 +23,12 @@ export class PermisosService {
       return permiso;
     } catch (error) {
       this.logger.error(`Error al crear permiso: ${error.message}`);
-      
+
       // Manejar error de duplicado (unique constraint)
       if (error.code === 'P2002') {
         throw new Error(`El permiso "${createPermisoDto.permiso}" ya existe`);
       }
-      
+
       throw error;
     }
   }
@@ -77,19 +77,27 @@ export class PermisosService {
 
       return permiso;
     } catch (error) {
-      this.logger.error(`Error al obtener permiso con ID ${id}: ${error.message}`);
+      this.logger.error(
+        `Error al obtener permiso con ID ${id}: ${error.message}`,
+      );
       throw error;
     }
   }
 
-
-  async update(id: number, updatePermisoDto: UpdatePermisoDto): Promise<Permisos> {
+  async update(
+    id: number,
+    updatePermisoDto: UpdatePermisoDto,
+  ): Promise<Permisos> {
     try {
       const permiso = await this.prisma.permisos.update({
         where: { idPermisos: id },
         data: {
-          ...(updatePermisoDto.permiso && { permiso: updatePermisoDto.permiso.trim() }),
-          ...(updatePermisoDto.descripcion && { descripcion: updatePermisoDto.descripcion.trim() }),
+          ...(updatePermisoDto.permiso && {
+            permiso: updatePermisoDto.permiso.trim(),
+          }),
+          ...(updatePermisoDto.descripcion && {
+            descripcion: updatePermisoDto.descripcion.trim(),
+          }),
         },
         include: {
           RolPermisos: {
@@ -103,13 +111,15 @@ export class PermisosService {
       this.logger.log(`Permiso actualizado con ID: ${id}`);
       return permiso;
     } catch (error) {
-      this.logger.error(`Error al actualizar permiso con ID ${id}: ${error.message}`);
-      
+      this.logger.error(
+        `Error al actualizar permiso con ID ${id}: ${error.message}`,
+      );
+
       // Manejar error de duplicado (unique constraint)
       if (error.code === 'P2002') {
         throw new Error(`El permiso "${updatePermisoDto.permiso}" ya existe`);
       }
-      
+
       throw error;
     }
   }
@@ -122,7 +132,9 @@ export class PermisosService {
       });
 
       if (permisoEnUso) {
-        throw new Error('No se puede eliminar el permiso porque está asignado a uno o más roles');
+        throw new Error(
+          'No se puede eliminar el permiso porque está asignado a uno o más roles',
+        );
       }
 
       await this.prisma.permisos.delete({
@@ -131,9 +143,10 @@ export class PermisosService {
 
       this.logger.log(`Permiso eliminado con ID: ${id}`);
     } catch (error) {
-      this.logger.error(`Error al eliminar permiso con ID ${id}: ${error.message}`);
+      this.logger.error(
+        `Error al eliminar permiso con ID ${id}: ${error.message}`,
+      );
       throw error;
     }
   }
- 
 }

@@ -1,7 +1,24 @@
-import { Controller, Post, Body, Get, Param, ParseIntPipe, Query, Put, Logger, HttpException, HttpStatus, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  ParseIntPipe,
+  Query,
+  Put,
+  Logger,
+  HttpException,
+  HttpStatus,
+  Delete,
+} from '@nestjs/common';
 import { ComprasService } from '../Services/compras.service';
 import { CreateCompraDto } from '../dto/create-compra.dto';
-import { ListComprasQueryDto, UpdateCompraDto, AnularCompraDto } from '../dto/update-compra.dto';
+import {
+  ListComprasQueryDto,
+  UpdateCompraDto,
+  AnularCompraDto,
+} from '../dto/update-compra.dto';
 
 @Controller('compras')
 export class ComprasController {
@@ -13,15 +30,24 @@ export class ComprasController {
   async create(@Body() body: { compra: CreateCompraDto; idUsuario: number }) {
     try {
       const { compra, idUsuario } = body;
-      if (!idUsuario) throw new HttpException('idUsuario es requerido', HttpStatus.BAD_REQUEST);
-  // Debug: log body recibido (evitar log completo en prod)
-  this.logger.debug(`Create compra body: ${JSON.stringify({ idUsuario, detallesCount: compra?.detalles?.length })}`);
-  const result = await this.comprasService.create(compra, idUsuario);
-  return { success: true, data: result };
+      if (!idUsuario)
+        throw new HttpException(
+          'idUsuario es requerido',
+          HttpStatus.BAD_REQUEST,
+        );
+      // Debug: log body recibido (evitar log completo en prod)
+      this.logger.debug(
+        `Create compra body: ${JSON.stringify({ idUsuario, detallesCount: compra?.detalles?.length })}`,
+      );
+      const result = await this.comprasService.create(compra, idUsuario);
+      return { success: true, data: result };
     } catch (error) {
       this.logger.error(`Error al crear compra: ${error.message}`);
       if (error instanceof HttpException) throw error;
-      throw new HttpException(`Error al crear compra: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        `Error al crear compra: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -32,7 +58,10 @@ export class ComprasController {
       return { success: true, ...data };
     } catch (error) {
       this.logger.error(`Error al listar compras: ${error.message}`);
-      throw new HttpException(`Error al listar compras: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        `Error al listar compras: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -44,7 +73,10 @@ export class ComprasController {
     } catch (error) {
       this.logger.error(`Error al obtener compra ${id}: ${error.message}`);
       if (error instanceof HttpException) throw error;
-      throw new HttpException(`Error al obtener compra: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        `Error al obtener compra: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -54,48 +86,78 @@ export class ComprasController {
       const data = await this.comprasService.findOneWithDetails(id);
       return { success: true, data };
     } catch (error) {
-      this.logger.error(`Error al obtener detalle completo de compra ${id}: ${error.message}`);
+      this.logger.error(
+        `Error al obtener detalle completo de compra ${id}: ${error.message}`,
+      );
       if (error instanceof HttpException) throw error;
-      throw new HttpException(`Error al obtener detalle completo: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        `Error al obtener detalle completo: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   @Put(':id')
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCompraDto) {
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateCompraDto,
+  ) {
     try {
       const data = await this.comprasService.update(id, dto);
       return { success: true, message: 'Compra actualizada', data };
     } catch (error) {
       this.logger.error(`Error al actualizar compra ${id}: ${error.message}`);
       if (error.code === 'P2025') {
-        throw new HttpException(`Compra con ID ${id} no encontrada`, HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          `Compra con ID ${id} no encontrada`,
+          HttpStatus.NOT_FOUND,
+        );
       }
-      throw new HttpException(`Error al actualizar compra: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        `Error al actualizar compra: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   @Delete(':id/anular')
-  async anular(@Param('id', ParseIntPipe) id: number, @Body() dto: AnularCompraDto) {
+  async anular(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AnularCompraDto,
+  ) {
     try {
       if (!dto?.idUsuario) {
-        throw new HttpException('idUsuario es requerido', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'idUsuario es requerido',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
-  // motivo ahora es opcional: si no viene, lo normalizamos a cadena vacía
-  const motivo = dto?.motivo ? String(dto.motivo).trim() : '';
+      // motivo ahora es opcional: si no viene, lo normalizamos a cadena vacía
+      const motivo = dto?.motivo ? String(dto.motivo).trim() : '';
 
-      const result = await this.comprasService.anular(id, dto.idUsuario, motivo);
+      const result = await this.comprasService.anular(
+        id,
+        dto.idUsuario,
+        motivo,
+      );
       return { success: true, data: result };
     } catch (error) {
       this.logger.error(`Error al anular compra ${id}: ${error.message}`);
       if (error instanceof HttpException) throw error;
-      throw new HttpException(`Error al anular compra: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        `Error al anular compra: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   // Compatibilidad: aceptar también POST en /:id/anular si el frontend aún envía POST
   @Post(':id/anular')
-  async anularPost(@Param('id', ParseIntPipe) id: number, @Body() dto: AnularCompraDto) {
+  async anularPost(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AnularCompraDto,
+  ) {
     // Reutilizamos la misma lógica del método DELETE
     return this.anular(id, dto as any);
   }
