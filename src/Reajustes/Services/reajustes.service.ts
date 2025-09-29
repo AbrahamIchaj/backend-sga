@@ -351,7 +351,7 @@ export class ReajustesService {
           await Promise.all([
             tx.historialInventario.count({ where: { idInventario } }),
             tx.reajusteDetalle.count({ where: { idInventario } }),
-            tx.despachos.count({ where: { idInventario } }),
+            tx.despachoDetalle.count({ where: { idInventario } }),
           ]);
 
         if (

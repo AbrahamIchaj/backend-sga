@@ -22,6 +22,7 @@ model CatalogoInsumos {
   IngresoComprasDetalle IngresoComprasDetalle[]
   ReajusteDetalle       ReajusteDetalle[]
   HistorialInventario   HistorialInventario[]
+  DespachoDetalle       DespachoDetalle[]
 }
 
 model IngresoCompras {
@@ -37,7 +38,7 @@ model IngresoCompras {
   noKardex              Int
   IngresoComprasDetalle IngresoComprasDetalle[]
   Inventario            Inventario[]
-  Despachos             Despachos[]
+  DespachoDetalle       DespachoDetalle[]
   HistorialInventario   HistorialInventario[]
 }
 
@@ -96,31 +97,52 @@ model Inventario {
   IngresoComprasLotes     IngresoComprasLotes?  @relation(fields: [idIngresoComprasLotes], references: [idIngresoComprasLotes])
   ReajusteDetalle         ReajusteDetalle[]
   HistorialInventario     HistorialInventario[]
-  Despachos               Despachos[]
+  DespachoDetalle         DespachoDetalle[]
 }
 
 model Servicios {
-  idServicio    Int         @id @default(autoincrement())
-  nombre        String      @db.VarChar(200)
-  observaciones String?     @db.VarChar(400)
-  Despachos     Despachos[]
+  idServicio    Int        @id @default(autoincrement())
+  nombre        String     @db.VarChar(200)
+  observaciones String?    @db.VarChar(400)
+  Despachos     Despacho[]
 }
 
-model Despachos {
+model Despacho {
   idDespacho          Int                   @id @default(autoincrement())
+  codigoDespacho      String?               @db.VarChar(50)
   fechaDespacho       DateTime              @default(now())
-  idInventario        Int
-  idIngresoCompras    Int
-  cantidad            Int
-  totalDespachado     Decimal               @db.Decimal(10, 3)
-  idServicio          Int
+  idServicio          Int?
   idUsuario           Int
   observaciones       String?               @db.VarChar(300)
-  Inventario          Inventario            @relation(fields: [idInventario], references: [idInventario])
-  IngresoCompras      IngresoCompras        @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
-  Servicios           Servicios             @relation(fields: [idServicio], references: [idServicio])
+  totalCantidad       Int                   @default(0)
+  totalGeneral        Decimal               @db.Decimal(12, 3)
+  Servicios           Servicios?            @relation(fields: [idServicio], references: [idServicio])
   Usuarios            Usuarios              @relation(fields: [idUsuario], references: [idUsuario])
+  Detalles            DespachoDetalle[]
   HistorialInventario HistorialInventario[]
+}
+
+model DespachoDetalle {
+  idDespachoDetalle  Int              @id @default(autoincrement())
+  idDespacho         Int
+  idInventario       Int
+  idCatalogoInsumos  Int?
+  idIngresoCompras   Int?
+  codigoInsumo       Int
+  nombreInsumo       String           @db.Text
+  caracteristicas    String           @db.Text
+  codigoPresentacion Int?
+  presentacion       String?          @db.Text
+  unidadMedida       String?          @db.Text
+  lote               String?          @db.VarChar(75)
+  fechaVencimiento   DateTime?
+  cantidad           Int
+  precioUnitario     Decimal          @db.Decimal(10, 3)
+  precioTotal        Decimal          @db.Decimal(12, 3)
+  Despacho           Despacho         @relation(fields: [idDespacho], references: [idDespacho], onDelete: Cascade)
+  Inventario         Inventario       @relation(fields: [idInventario], references: [idInventario])
+  CatalogoInsumos    CatalogoInsumos? @relation(fields: [idCatalogoInsumos], references: [idCatalogoInsumos])
+  IngresoCompras     IngresoCompras?  @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
 }
 
 model Usuarios {
@@ -141,7 +163,7 @@ model Usuarios {
   fechaPasswordTemporal  DateTime?
   debesCambiarPassword   Boolean                  @default(false)
   intentosCambioPassword Int                      @default(0)
-  Despachos              Despachos[]
+  Despachos              Despacho[]
   HistorialInventario    HistorialInventario[]
   Reajustes              Reajustes[]
   Roles                  Roles                    @relation(fields: [idRol], references: [idRoles])
@@ -236,7 +258,7 @@ model HistorialInventario {
   CatalogoInsumos   CatalogoInsumos? @relation(fields: [idCatalogoInsumos], references: [idCatalogoInsumos])
   Inventario        Inventario       @relation(fields: [idInventario], references: [idInventario])
   IngresoCompras    IngresoCompras?  @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
-  Despachos         Despachos?       @relation(fields: [idDespacho], references: [idDespacho])
+  Despacho          Despacho?        @relation(fields: [idDespacho], references: [idDespacho])
   Reajustes         Reajustes?       @relation(fields: [idReajuste], references: [idReajuste])
   Usuarios          Usuarios         @relation(fields: [idUsuario], references: [idUsuario])
 }

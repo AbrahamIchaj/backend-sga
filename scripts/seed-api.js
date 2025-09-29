@@ -82,6 +82,10 @@ async function main() {
       permiso: 'GESTIONAR_USUARIOS',
       descripcion: 'Permite gestionar los usuarios.',
     },
+    {
+      permiso: 'GESTIONAR_DESPACHOS',
+      descripcion: 'Permite gestionar los despachos de inventario.',
+    },
   ];
 
   for (const p of permisos) {

@@ -9,6 +9,7 @@ import { UsuariosModule } from './Usuarios/Module/usuarios.module';
 import { ComprasModule } from './Compras/Module/compras.module';
 import { InventarioModule } from './Inventario/Module/inventario.module';
 import { ReajustesModule } from './Reajustes/Module/reajustes.module';
+import { DespachosModule } from './Despachos/Module/despachos.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ReajustesModule } from './Reajustes/Module/reajustes.module';
     ComprasModule,
     InventarioModule,
     ReajustesModule,
+    DespachosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

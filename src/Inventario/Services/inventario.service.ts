@@ -380,7 +380,7 @@ export class InventarioService {
                 proveedor: true,
               },
             },
-            Despachos: {
+            Despacho: {
               select: {
                 Servicios: {
                   select: {
@@ -431,10 +431,10 @@ export class InventarioService {
           };
         }
 
-        if (item.Despachos?.Servicios) {
+        if (item.Despacho?.Servicios) {
           response.referencia = {
             ...response.referencia,
-            servicio: item.Despachos.Servicios.nombre,
+            servicio: item.Despacho.Servicios.nombre,
           };
         }
 

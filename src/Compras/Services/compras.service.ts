@@ -329,7 +329,7 @@ export class ComprasService {
       // No permitir anular si existen despachos asociados
       const countDespachos =
         idsInventario.length > 0
-          ? await tx.despachos.count({
+          ? await tx.despachoDetalle.count({
               where: { idInventario: { in: idsInventario } },
             })
           : 0;
