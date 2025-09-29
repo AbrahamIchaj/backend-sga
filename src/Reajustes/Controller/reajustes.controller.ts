@@ -9,6 +9,7 @@ import {
   Logger,
   HttpException,
   HttpStatus,
+  Delete,
 } from '@nestjs/common';
 import { ReajustesService } from '../Services/reajustes.service';
 import { CreateReajusteDto } from '../dto/create-reajuste.dto';
@@ -69,6 +70,35 @@ export class ReajustesController {
       if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al obtener reajuste: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Delete(':id')
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { idUsuario?: number },
+  ) {
+    try {
+      const idUsuario = Number(body?.idUsuario);
+      if (!idUsuario) {
+        throw new HttpException(
+          'idUsuario es requerido',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const data = await this.reajustesService.remove(id, idUsuario);
+
+      return { success: true, data };
+    } catch (error) {
+      this.logger.error(
+        `Error al eliminar reajuste ${id}: ${error.message}`,
+      );
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        `Error al eliminar reajuste: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import {
   CatalogoInsumos,
+  HistorialInventario,
   Inventario,
   Prisma,
   PrismaClient,
@@ -221,6 +222,155 @@ export class ReajustesService {
     });
 
     return this.findOne(resultado.idReajuste);
+  }
+
+  async remove(id: number, idUsuario: number) {
+    if (!idUsuario) {
+      throw new BadRequestException('idUsuario es requerido');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const reajuste = await tx.reajustes.findUnique({
+        where: { idReajuste: id },
+        include: {
+          ReajusteDetalle: {
+            orderBy: { idReajusteDetalle: 'asc' },
+          },
+        },
+      });
+
+      if (!reajuste) {
+        throw new NotFoundException(`Reajuste con ID ${id} no encontrado`);
+      }
+
+      const historiales = await tx.historialInventario.findMany({
+        where: { idReajuste: id },
+        orderBy: { idHistorial: 'asc' },
+      });
+
+      const historialesPorInventario = new Map<number, HistorialInventario[]>();
+      historiales.forEach((historial) => {
+        const lista = historialesPorInventario.get(historial.idInventario) ?? [];
+        lista.push(historial);
+        historialesPorInventario.set(historial.idInventario, lista);
+      });
+
+      const esEntrada = reajuste.tipoReajuste === 1;
+      const inventariosParaPosibleBaja = new Set<number>();
+
+      for (let index = 0; index < reajuste.ReajusteDetalle.length; index++) {
+        const detalle = reajuste.ReajusteDetalle[index];
+        if (!detalle.idInventario) {
+          throw new BadRequestException(
+            `El detalle #${index + 1} no tiene inventario asociado, no se puede revertir el reajuste`,
+          );
+        }
+
+        const inventario = await tx.inventario.findUnique({
+          where: { idInventario: detalle.idInventario },
+        });
+
+        if (!inventario) {
+          throw new NotFoundException(
+            `Inventario asociado al detalle #${index + 1} no encontrado`,
+          );
+        }
+
+        const historialesDetalle =
+          historialesPorInventario.get(detalle.idInventario) ?? [];
+
+        if (historialesDetalle.length === 0) {
+          throw new BadRequestException(
+            `El inventario del detalle #${index + 1} no tiene historial asociado al reajuste`,
+          );
+        }
+
+        const idsHistorialDetalle = historialesDetalle.map(
+          (historial) => historial.idHistorial,
+        );
+
+        const fechaMovimientoLimite = historialesDetalle.reduce((max, item) =>
+          item.fechaMovimiento > max ? item.fechaMovimiento : max,
+        historialesDetalle[0].fechaMovimiento);
+
+        const movimientosPosteriores = await tx.historialInventario.count({
+          where: {
+            idInventario: detalle.idInventario,
+            idHistorial: { notIn: idsHistorialDetalle },
+            fechaMovimiento: { gt: fechaMovimientoLimite },
+          },
+        });
+
+        if (movimientosPosteriores > 0) {
+          throw new BadRequestException(
+            `No se puede eliminar el reajuste: el inventario del detalle #${index + 1} tiene movimientos posteriores`,
+          );
+        }
+
+        const precioUnitarioDecimal = new Prisma.Decimal(
+          inventario.precioUnitario,
+        );
+        let nuevaCantidad = inventario.cantidadDisponible;
+
+        if (esEntrada) {
+          nuevaCantidad = inventario.cantidadDisponible - detalle.cantidad;
+          if (nuevaCantidad < 0) {
+            throw new BadRequestException(
+              `No se puede revertir el detalle #${index + 1} porque la cantidad disponible es menor a la registrada`,
+            );
+          }
+          if (
+            nuevaCantidad === 0 &&
+            !inventario.idIngresoCompras &&
+            !inventario.idIngresoComprasLotes
+          ) {
+            inventariosParaPosibleBaja.add(inventario.idInventario);
+          }
+        } else {
+          nuevaCantidad =
+            inventario.cantidadDisponible + detalle.cantidad;
+        }
+
+        const nuevoPrecioTotal = precioUnitarioDecimal.mul(nuevaCantidad);
+
+        await tx.inventario.update({
+          where: { idInventario: detalle.idInventario },
+          data: {
+            cantidadDisponible: nuevaCantidad,
+            precioTotal: nuevoPrecioTotal,
+          },
+        });
+      }
+
+      await tx.reajusteDetalle.deleteMany({ where: { idReajuste: id } });
+      await tx.historialInventario.deleteMany({ where: { idReajuste: id } });
+      await tx.reajustes.delete({ where: { idReajuste: id } });
+
+      for (const idInventario of inventariosParaPosibleBaja) {
+        const [historialRestante, detallesRestantes, despachos] =
+          await Promise.all([
+            tx.historialInventario.count({ where: { idInventario } }),
+            tx.reajusteDetalle.count({ where: { idInventario } }),
+            tx.despachos.count({ where: { idInventario } }),
+          ]);
+
+        if (
+          historialRestante === 0 &&
+          detallesRestantes === 0 &&
+          despachos === 0
+        ) {
+          await tx.inventario.delete({ where: { idInventario } });
+        }
+      }
+
+      this.logger.log(
+        `Reajuste ${id} eliminado por usuario ${idUsuario}. Detalles revertidos: ${reajuste.ReajusteDetalle.length}`,
+      );
+
+      return {
+        message: `Reajuste ${id} eliminado y movimientos revertidos correctamente`,
+      };
+    });
   }
 
   async findAll(query: ListReajustesQueryDto) {

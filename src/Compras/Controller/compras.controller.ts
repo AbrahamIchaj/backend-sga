@@ -152,13 +152,11 @@ export class ComprasController {
     }
   }
 
-  // Compatibilidad: aceptar también POST en /:id/anular si el frontend aún envía POST
   @Post(':id/anular')
   async anularPost(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AnularCompraDto,
   ) {
-    // Reutilizamos la misma lógica del método DELETE
     return this.anular(id, dto as any);
   }
 }
