@@ -148,11 +148,11 @@ export class CatalogoInsumosService {
 
             if (codigoPresentacion) {
               const sqlSelectByCP = `SELECT * FROM "CatalogoInsumos" WHERE "codigoInsumo" = $1 AND "codigoPresentacion" = $2`;
-              existingRecords = (await this.prisma.$queryRawUnsafe(
+              existingRecords = await this.prisma.$queryRawUnsafe(
                 sqlSelectByCP,
                 codigoInsumo,
                 codigoPresentacion,
-              )) as any[];
+              );
             } else if (nombrePresentacion || unidadMedida) {
               const sqlSelectByNames = `
                 SELECT * FROM "CatalogoInsumos"
@@ -160,12 +160,12 @@ export class CatalogoInsumosService {
                   AND COALESCE("nombrePresentacion", '') = $2
                   AND COALESCE("unidadMedida", '') = $3
               `;
-              existingRecords = (await this.prisma.$queryRawUnsafe(
+              existingRecords = await this.prisma.$queryRawUnsafe(
                 sqlSelectByNames,
                 codigoInsumo,
                 nombrePresentacion || '',
                 unidadMedida || '',
-              )) as any[];
+              );
             } else {
               // Sin datos de presentación: no podemos asegurar unicidad, insertamos de todas formas
               existingRecords = [];
@@ -407,26 +407,20 @@ export class CatalogoInsumosService {
           WHERE table_schema = 'public' AND table_name = '${nombreTablaReal}'
           ORDER BY ordinal_position
         `;
-        const columnas = (await this.prisma.$queryRawUnsafe(
-          sqlColumnas,
-        )) as any[];
+        const columnas = await this.prisma.$queryRawUnsafe(sqlColumnas);
 
         estructuraTabla = columnas;
 
         // Contar registros
         const sqlConteo = `SELECT COUNT(*) as total FROM "${nombreTablaReal}"`;
-        const conteo = (await this.prisma.$queryRawUnsafe(sqlConteo)) as Array<{
-          total: number;
-        }>;
+        const conteo = await this.prisma.$queryRawUnsafe(sqlConteo);
 
         totalRegistros = conteo[0]?.total || 0;
 
         // Obtener muestra
         if (totalRegistros > 0) {
           const sqlMuestra = `SELECT * FROM "${nombreTablaReal}" LIMIT 1`;
-          muestraRegistro = (await this.prisma.$queryRawUnsafe(
-            sqlMuestra,
-          )) as any[];
+          muestraRegistro = await this.prisma.$queryRawUnsafe(sqlMuestra);
         }
       }
 
@@ -443,9 +437,7 @@ export class CatalogoInsumosService {
         try {
           // Usamos una forma alternativa de consulta SQL directa para evitar problemas con las comillas
           const sql = `SELECT COUNT(*) as total FROM "${nombre}"`;
-          const resultado = (await this.prisma.$queryRawUnsafe(sql)) as Array<{
-            total: number;
-          }>;
+          const resultado = await this.prisma.$queryRawUnsafe(sql);
           resultadosPruebas[nombre] =
             `Realizado (${resultado[0]?.total || 0} registros)`;
         } catch (error) {

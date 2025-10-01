@@ -10,6 +10,7 @@ import { ComprasModule } from './Compras/Module/compras.module';
 import { InventarioModule } from './Inventario/Module/inventario.module';
 import { ReajustesModule } from './Reajustes/Module/reajustes.module';
 import { DespachosModule } from './Despachos/Module/despachos.module';
+import { DashboardModule } from './Dashboard/Module/dashboard.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { DespachosModule } from './Despachos/Module/despachos.module';
     InventarioModule,
     ReajustesModule,
     DespachosModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

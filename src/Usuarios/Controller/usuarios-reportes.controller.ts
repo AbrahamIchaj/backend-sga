@@ -196,7 +196,7 @@ export class UsuariosReportesController {
         apellidos: usuario.apellidos,
         correo: usuario.correo,
         telefono: usuario.telefono,
-  rol: usuario.Roles ? usuario.Roles.nombreRol : null,
+        rol: usuario.Roles ? usuario.Roles.nombreRol : null,
         activo: usuario.activo,
         fechaCreacion: usuario.fechaCreacion,
         ultimoAcceso: usuario.ultimoAcceso,

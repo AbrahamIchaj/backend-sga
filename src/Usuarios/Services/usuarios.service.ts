@@ -223,7 +223,9 @@ export class UsuariosService {
           const telefono = Number(telefonoLimpio);
 
           if (Number.isNaN(telefono)) {
-            throw new BadRequestException('El teléfono proporcionado no es válido');
+            throw new BadRequestException(
+              'El teléfono proporcionado no es válido',
+            );
           }
 
           data.telefono = telefono;
@@ -399,12 +401,7 @@ export class UsuariosService {
   }
 
   private mapearPerfil(usuario: UsuarioConRol) {
-    const {
-      passwordHash: _password,
-      Roles: rol,
-      img,
-      ...resto
-    } = usuario;
+    const { passwordHash: _password, Roles: rol, img, ...resto } = usuario;
 
     const foto = this.normalizarImagen(img as unknown as Buffer | null);
 

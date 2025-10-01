@@ -250,7 +250,8 @@ export class ReajustesService {
 
       const historialesPorInventario = new Map<number, HistorialInventario[]>();
       historiales.forEach((historial) => {
-        const lista = historialesPorInventario.get(historial.idInventario) ?? [];
+        const lista =
+          historialesPorInventario.get(historial.idInventario) ?? [];
         lista.push(historial);
         historialesPorInventario.set(historial.idInventario, lista);
       });
@@ -289,9 +290,11 @@ export class ReajustesService {
           (historial) => historial.idHistorial,
         );
 
-        const fechaMovimientoLimite = historialesDetalle.reduce((max, item) =>
-          item.fechaMovimiento > max ? item.fechaMovimiento : max,
-        historialesDetalle[0].fechaMovimiento);
+        const fechaMovimientoLimite = historialesDetalle.reduce(
+          (max, item) =>
+            item.fechaMovimiento > max ? item.fechaMovimiento : max,
+          historialesDetalle[0].fechaMovimiento,
+        );
 
         const movimientosPosteriores = await tx.historialInventario.count({
           where: {
@@ -327,8 +330,7 @@ export class ReajustesService {
             inventariosParaPosibleBaja.add(inventario.idInventario);
           }
         } else {
-          nuevaCantidad =
-            inventario.cantidadDisponible + detalle.cantidad;
+          nuevaCantidad = inventario.cantidadDisponible + detalle.cantidad;
         }
 
         const nuevoPrecioTotal = precioUnitarioDecimal.mul(nuevaCantidad);

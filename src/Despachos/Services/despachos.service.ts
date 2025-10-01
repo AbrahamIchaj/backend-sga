@@ -152,10 +152,7 @@ export class DespachosService {
               include: { IngresoComprasDetalle: true },
             },
           },
-          orderBy: [
-            { fechaVencimiento: 'asc' },
-            { idInventario: 'asc' },
-          ],
+          orderBy: [{ fechaVencimiento: 'asc' }, { idInventario: 'asc' }],
         });
 
         if (!inventarios.length) {
@@ -192,7 +189,8 @@ export class DespachosService {
 
           const idCatalogoInsumos =
             detalle.idCatalogoInsumos ??
-            lote.IngresoComprasLotes?.IngresoComprasDetalle?.idCatalogoInsumos ??
+            lote.IngresoComprasLotes?.IngresoComprasDetalle
+              ?.idCatalogoInsumos ??
             null;
 
           await tx.despachoDetalle.create({
@@ -277,9 +275,7 @@ export class DespachosService {
         `Despacho ${codigoDespacho} creado con ${dto.detalles.length} líneas solicitadas y ${despachoActualizado.Detalles.length} lotes consumidos`,
       );
 
-      return this.mapDespacho(
-        despachoActualizado as DespachoWithRelations,
-      );
+      return this.mapDespacho(despachoActualizado as DespachoWithRelations);
     });
   }
 

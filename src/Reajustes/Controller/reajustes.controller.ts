@@ -93,9 +93,7 @@ export class ReajustesController {
 
       return { success: true, data };
     } catch (error) {
-      this.logger.error(
-        `Error al eliminar reajuste ${id}: ${error.message}`,
-      );
+      this.logger.error(`Error al eliminar reajuste ${id}: ${error.message}`);
       if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Error al eliminar reajuste: ${error.message}`,
