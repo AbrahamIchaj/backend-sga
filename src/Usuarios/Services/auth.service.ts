@@ -61,12 +61,14 @@ export class AuthService {
           (rp) => rp.activo && rp.Permisos,
         )?.map((rp) => rp.Permisos.permiso) || [];
 
-      // Construir respuesta sin password
-      const { passwordHash: _, ...usuarioSinPassword } = usuario;
+      // Construir respuesta sin password y con imagen formateada
+      const { passwordHash: _, img, ...usuarioSinPassword } = usuario;
+      const fotoPerfil = this.normalizarImagen(img);
 
       const response = {
         usuario: {
           ...usuarioSinPassword,
+          fotoPerfil,
           rol: {
             idRoles: usuario.Roles?.idRoles,
             nombreRol: usuario.Roles?.nombreRol,
@@ -131,5 +133,23 @@ export class AuthService {
       this.logger.error(`Error validando permisos: ${error.message}`);
       return false;
     }
+  }
+
+  private normalizarImagen(img: Buffer | Uint8Array | null): string | null {
+    if (!img) {
+      return null;
+    }
+
+    if (Buffer.isBuffer(img)) {
+      const posibleCadena = img.toString('utf8');
+      if (posibleCadena.startsWith('data:image')) {
+        return posibleCadena;
+      }
+
+      return `data:image/png;base64,${img.toString('base64')}`;
+    }
+
+    const buffer = Buffer.from(img);
+    return `data:image/png;base64,${buffer.toString('base64')}`;
   }
 }

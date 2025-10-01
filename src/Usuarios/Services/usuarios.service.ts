@@ -8,13 +8,14 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { HashService } from './hash.service';
 import { PasswordTemporalService } from './password-temporal.service';
-import { Usuarios, Roles } from '@prisma/client';
+import { Usuarios, Roles, Prisma } from '@prisma/client';
 import { CreateUsuarioDto } from '../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../dto/update-usuario.dto';
 import { AdminChangePasswordDto } from '../dto/password.dto';
+import { UpdatePerfilDto } from '../dto/update-perfil.dto';
 
 type UsuarioConRol = Usuarios & {
-  Roles: Roles;
+  Roles: Roles | null;
 };
 
 type UsuarioSinPassword = Omit<UsuarioConRol, 'passwordHash'>;
@@ -150,6 +151,125 @@ export class UsuariosService {
     }
   }
 
+  async obtenerPerfil(id: number) {
+    try {
+      const usuario = await this.prisma.usuarios.findUnique({
+        where: { idUsuario: id },
+        include: {
+          Roles: true,
+        },
+      });
+
+      if (!usuario) {
+        throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+      }
+
+      const perfil = this.mapearPerfil(usuario);
+
+      this.logger.log(`Perfil obtenido para usuario ${id}`);
+      return perfil;
+    } catch (error) {
+      this.logger.error(
+        `Error al obtener el perfil del usuario ${id}: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  async actualizarPerfil(id: number, updatePerfilDto: UpdatePerfilDto) {
+    try {
+      const usuarioActual = await this.prisma.usuarios.findUnique({
+        where: { idUsuario: id },
+      });
+
+      if (!usuarioActual) {
+        throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+      }
+
+      const data: Prisma.UsuariosUpdateInput = {};
+
+      if (updatePerfilDto.nombres) {
+        data.nombres = updatePerfilDto.nombres.trim();
+      }
+
+      if (updatePerfilDto.apellidos) {
+        data.apellidos = updatePerfilDto.apellidos.trim();
+      }
+
+      if (updatePerfilDto.correo) {
+        const correo = updatePerfilDto.correo.toLowerCase().trim();
+
+        if (correo !== usuarioActual.correo) {
+          const correoExistente = await this.prisma.usuarios.findUnique({
+            where: { correo },
+          });
+
+          if (correoExistente) {
+            throw new ConflictException(
+              `El correo ${updatePerfilDto.correo} ya está registrado`,
+            );
+          }
+        }
+
+        data.correo = correo;
+      }
+
+      if (updatePerfilDto.telefono !== undefined) {
+        const telefonoLimpio = updatePerfilDto.telefono
+          ?.replace(/[^\d]/g, '')
+          .trim();
+
+        if (telefonoLimpio) {
+          const telefono = Number(telefonoLimpio);
+
+          if (Number.isNaN(telefono)) {
+            throw new BadRequestException('El teléfono proporcionado no es válido');
+          }
+
+          data.telefono = telefono;
+        } else {
+          data.telefono = null;
+        }
+      }
+
+      if (updatePerfilDto.fotoBase64 !== undefined) {
+        const fotoNormalizada = updatePerfilDto.fotoBase64
+          ? updatePerfilDto.fotoBase64.trim()
+          : null;
+
+        data.img = fotoNormalizada
+          ? Buffer.from(fotoNormalizada, 'utf8')
+          : null;
+      }
+
+      if (updatePerfilDto.eliminarFoto) {
+        data.img = null;
+      }
+
+      if (Object.keys(data).length === 0) {
+        return this.obtenerPerfil(id);
+      }
+
+      const usuarioActualizado = await this.prisma.usuarios.update({
+        where: { idUsuario: id },
+        data,
+        include: {
+          Roles: true,
+        },
+      });
+
+      const perfil = this.mapearPerfil(usuarioActualizado);
+
+      this.logger.log(`Perfil actualizado para usuario ${id}`);
+      return perfil;
+    } catch (error) {
+      this.logger.error(
+        `Error al actualizar el perfil del usuario ${id}: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
   async update(
     id: number,
     updateUsuarioDto: UpdateUsuarioDto,
@@ -276,6 +396,70 @@ export class UsuariosService {
       );
       throw error;
     }
+  }
+
+  private mapearPerfil(usuario: UsuarioConRol) {
+    const {
+      passwordHash: _password,
+      Roles: rol,
+      img,
+      ...resto
+    } = usuario;
+
+    const foto = this.normalizarImagen(img as unknown as Buffer | null);
+
+    return {
+      ...resto,
+      rol: rol
+        ? {
+            idRoles: rol.idRoles,
+            nombreRol: rol.nombreRol,
+            descripcion: rol.descripcion,
+          }
+        : null,
+      fotoPerfil: foto,
+    };
+  }
+
+  private normalizarImagen(img: Buffer | Uint8Array | null): string | null {
+    if (!img) {
+      return null;
+    }
+
+    const buffer = Buffer.isBuffer(img) ? img : Buffer.from(img);
+    const posibleCadena = buffer.toString('utf8').trim();
+
+    const cadenaNormalizada = this.normalizarCadenaImagen(posibleCadena);
+    if (cadenaNormalizada) {
+      return cadenaNormalizada;
+    }
+
+    return `data:image/png;base64,${buffer.toString('base64')}`;
+  }
+
+  private normalizarCadenaImagen(cadena: string): string | null {
+    if (!cadena) {
+      return null;
+    }
+
+    if (cadena.startsWith('data:image')) {
+      return cadena;
+    }
+
+    if (this.esCadenaBase64(cadena)) {
+      return `data:image/png;base64,${cadena}`;
+    }
+
+    return null;
+  }
+
+  private esCadenaBase64(cadena: string): boolean {
+    if (!cadena || cadena.length % 4 !== 0) {
+      return false;
+    }
+
+    const base64Regex = /^[A-Za-z0-9+/]+={0,2}$/;
+    return base64Regex.test(cadena);
   }
 
   //METODO DE GESTION DE CONTRASEÑAS

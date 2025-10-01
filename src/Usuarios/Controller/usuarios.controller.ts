@@ -10,10 +10,12 @@ import {
   HttpStatus,
   HttpCode,
   Logger,
+  Patch,
 } from '@nestjs/common';
 import { UsuariosService } from '../Services/usuarios.service';
 import { CreateUsuarioDto } from '../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../dto/update-usuario.dto';
+import { UpdatePerfilDto } from '../dto/update-perfil.dto';
 
 @Controller('usuarios')
 export class UsuariosController {
@@ -64,6 +66,29 @@ export class UsuariosController {
     }
   }
 
+  @Get(':id/perfil')
+  async obtenerPerfil(@Param('id', ParseIntPipe) id: number) {
+    try {
+      const perfil = await this.usuariosService.obtenerPerfil(id);
+
+      return {
+        success: true,
+        message: 'Perfil obtenido correctamente',
+        data: perfil,
+        meta: {
+          action: 'GET_PROFILE',
+          timestamp: new Date().toISOString(),
+          userId: id,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error al obtener el perfil del usuario ${id}: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {
@@ -106,6 +131,36 @@ export class UsuariosController {
       };
     } catch (error) {
       this.logger.error(`Error al actualizar usuario ${id}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  @Patch(':id/perfil')
+  async actualizarPerfil(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePerfilDto: UpdatePerfilDto,
+  ) {
+    try {
+      const perfil = await this.usuariosService.actualizarPerfil(
+        id,
+        updatePerfilDto,
+      );
+
+      return {
+        success: true,
+        message: 'Perfil actualizado exitosamente',
+        data: perfil,
+        meta: {
+          action: 'UPDATE_PROFILE',
+          timestamp: new Date().toISOString(),
+          userId: id,
+          fieldsUpdated: Object.keys(updatePerfilDto),
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error al actualizar el perfil del usuario ${id}: ${error.message}`,
+      );
       throw error;
     }
   }
