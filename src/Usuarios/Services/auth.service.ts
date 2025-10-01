@@ -140,16 +140,39 @@ export class AuthService {
       return null;
     }
 
-    if (Buffer.isBuffer(img)) {
-      const posibleCadena = img.toString('utf8');
-      if (posibleCadena.startsWith('data:image')) {
-        return posibleCadena;
-      }
+    const buffer = Buffer.isBuffer(img) ? img : Buffer.from(img);
+    const posibleCadena = buffer.toString('utf8').trim();
 
-      return `data:image/png;base64,${img.toString('base64')}`;
+    const cadenaNormalizada = this.normalizarCadenaImagen(posibleCadena);
+    if (cadenaNormalizada) {
+      return cadenaNormalizada;
     }
 
-    const buffer = Buffer.from(img);
     return `data:image/png;base64,${buffer.toString('base64')}`;
+  }
+
+  private normalizarCadenaImagen(cadena: string): string | null {
+    if (!cadena) {
+      return null;
+    }
+
+    if (cadena.startsWith('data:image')) {
+      return cadena;
+    }
+
+    if (this.esCadenaBase64(cadena)) {
+      return `data:image/png;base64,${cadena}`;
+    }
+
+    return null;
+  }
+
+  private esCadenaBase64(cadena: string): boolean {
+    if (!cadena || cadena.length % 4 !== 0) {
+      return false;
+    }
+
+    const base64Regex = /^[A-Za-z0-9+/]+={0,2}$/;
+    return base64Regex.test(cadena);
   }
 }
