@@ -111,6 +111,15 @@ async function main() {
     idRol: adminRoleId,
     activo: true,
   };
+  const Auxiliar = {
+    nombres: 'Jose',
+    apellidos: 'Santizo',
+    correo: 'auxsum1hosp287@gmail.com',
+    password: 'HospTecpan287@',
+    telefono: 12345678,
+    idRol: adminRoleId,
+    activo: true,
+  };
 
   console.log('Creando usuario administrador con idRol =', adminRoleId);
   const resUser = await post('/usuarios', admin);

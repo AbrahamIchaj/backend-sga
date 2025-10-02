@@ -392,8 +392,12 @@ export class CatalogoInsumosService {
       );
 
       // 4. Si encontramos la tabla, obtener detalles
-      let estructuraTabla: any[] = [];
-      let muestraRegistro: any[] = [];
+      let estructuraTabla: Array<{
+        column_name: string;
+        data_type: string;
+        is_nullable: string;
+      }> = [];
+      let muestraRegistro: Record<string, unknown>[] = [];
       let totalRegistros = 0;
       let nombreTablaReal: string | null = null;
 
@@ -407,20 +411,35 @@ export class CatalogoInsumosService {
           WHERE table_schema = 'public' AND table_name = '${nombreTablaReal}'
           ORDER BY ordinal_position
         `;
-        const columnas = await this.prisma.$queryRawUnsafe(sqlColumnas);
+        const columnas =
+          await this.prisma.$queryRawUnsafe<
+            Array<{
+              column_name: string;
+              data_type: string;
+              is_nullable: string;
+            }>
+          >(sqlColumnas);
 
         estructuraTabla = columnas;
 
         // Contar registros
         const sqlConteo = `SELECT COUNT(*) as total FROM "${nombreTablaReal}"`;
-        const conteo = await this.prisma.$queryRawUnsafe(sqlConteo);
+        const conteo = await this.prisma.$queryRawUnsafe<
+          Array<{ total: number }>
+        >(sqlConteo);
 
-        totalRegistros = conteo[0]?.total || 0;
+        const conteoValor = conteo[0]?.total ?? 0;
+        totalRegistros =
+          typeof conteoValor === 'bigint'
+            ? Number(conteoValor)
+            : Number(conteoValor || 0);
 
         // Obtener muestra
         if (totalRegistros > 0) {
           const sqlMuestra = `SELECT * FROM "${nombreTablaReal}" LIMIT 1`;
-          muestraRegistro = await this.prisma.$queryRawUnsafe(sqlMuestra);
+          muestraRegistro = await this.prisma.$queryRawUnsafe<
+            Record<string, unknown>[]
+          >(sqlMuestra);
         }
       }
 
@@ -437,9 +456,13 @@ export class CatalogoInsumosService {
         try {
           // Usamos una forma alternativa de consulta SQL directa para evitar problemas con las comillas
           const sql = `SELECT COUNT(*) as total FROM "${nombre}"`;
-          const resultado = await this.prisma.$queryRawUnsafe(sql);
-          resultadosPruebas[nombre] =
-            `Realizado (${resultado[0]?.total || 0} registros)`;
+          const resultado = await this.prisma.$queryRawUnsafe<
+            Array<{ total: bigint | number }>
+          >(sql);
+          const total = resultado[0]?.total ?? 0;
+          const totalNormalizado =
+            typeof total === 'bigint' ? Number(total) : Number(total || 0);
+          resultadosPruebas[nombre] = `Realizado (${totalNormalizado} registros)`;
         } catch (error) {
           resultadosPruebas[nombre] =
             `Error: ${error instanceof Error ? error.message : 'Desconocido'}`;
