@@ -16,6 +16,7 @@ import { UsuariosService } from '../Services/usuarios.service';
 import { CreateUsuarioDto } from '../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../dto/update-usuario.dto';
 import { UpdatePerfilDto } from '../dto/update-perfil.dto';
+import { ActualizarRenglonesDto } from '../dto/update-renglones.dto';
 
 @Controller('usuarios')
 export class UsuariosController {
@@ -62,6 +63,27 @@ export class UsuariosController {
       };
     } catch (error) {
       this.logger.error(`Error al obtener usuarios: ${error.message}`);
+      throw error;
+    }
+  }
+
+  @Get('renglones/disponibles')
+  async obtenerRenglonesDisponibles() {
+    try {
+      const renglones = await this.usuariosService.obtenerRenglonesDisponibles();
+
+      return {
+        success: true,
+        message: 'Renglones disponibles obtenidos correctamente',
+        data: renglones,
+        meta: {
+          action: 'GET_RENGLONES_DISPONIBLES',
+          timestamp: new Date().toISOString(),
+          total: renglones.length,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Error al obtener renglones disponibles: ${error.message}`);
       throw error;
     }
   }
@@ -131,6 +153,36 @@ export class UsuariosController {
       };
     } catch (error) {
       this.logger.error(`Error al actualizar usuario ${id}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  @Put(':id/renglones')
+  async actualizarRenglones(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarRenglonesDto,
+  ) {
+    try {
+      const usuario = await this.usuariosService.actualizarRenglones(
+        id,
+        dto.renglones,
+      );
+
+      return {
+        success: true,
+        message: 'Renglones actualizados correctamente',
+        data: usuario,
+        meta: {
+          action: 'UPDATE_RENGLONES_USUARIO',
+          timestamp: new Date().toISOString(),
+          userId: id,
+          totalRenglones: usuario.renglonesPermitidos.length,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error al actualizar renglones del usuario ${id}: ${error.message}`,
+      );
       throw error;
     }
   }

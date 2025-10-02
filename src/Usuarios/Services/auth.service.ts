@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Usuarios } from '@prisma/client';
 import { LoginDto } from '../dto/login.dto';
 import { HashService } from './hash.service';
 
@@ -17,7 +18,7 @@ export class AuthService {
 
     try {
       // Buscar usuario por correo con relaciones
-      const usuario = await this.prisma.usuarios.findUnique({
+      const usuario = await (this.prisma.usuarios as any).findUnique({
         where: { correo },
         include: {
           Roles: {
@@ -30,6 +31,10 @@ export class AuthService {
               },
             },
           },
+          UsuariosRenglones: {
+            where: { activo: true },
+            select: { renglon: true },
+          },
         },
       });
 
@@ -38,7 +43,20 @@ export class AuthService {
         throw new UnauthorizedException('Credenciales inválidas');
       }
 
-      if (!usuario.activo) {
+      const usuarioCompleto = usuario as Usuarios & {
+        Roles: {
+          idRoles: number;
+          nombreRol: string;
+          descripcion: string;
+          RolPermisos: Array<{
+            activo: boolean;
+            Permisos: { permiso: string } | null;
+          }>;
+        } | null;
+        UsuariosRenglones: { renglon: number }[];
+      };
+
+      if (!usuarioCompleto.activo) {
         this.logger.warn(`Intento de login con usuario inactivo: ${correo}`);
         throw new UnauthorizedException('Usuario inactivo');
       }
@@ -46,7 +64,7 @@ export class AuthService {
       // Verificar contraseña usando HashService
       const isPasswordValid = await this.hashService.verifyPassword(
         password,
-        usuario.passwordHash,
+        usuarioCompleto.passwordHash,
       );
       if (!isPasswordValid) {
         this.logger.warn(
@@ -57,29 +75,37 @@ export class AuthService {
 
       // Construir lista de permisos
       const permisos =
-        usuario.Roles?.RolPermisos?.filter(
-          (rp) => rp.activo && rp.Permisos,
-        )?.map((rp) => rp.Permisos.permiso) || [];
+        usuarioCompleto.Roles?.RolPermisos?.filter(
+          (rp) => rp.activo && rp.Permisos?.permiso,
+        )?.map((rp) => rp.Permisos?.permiso as string) || [];
 
       // Construir respuesta sin password y con imagen formateada
-      const { passwordHash: _, img, ...usuarioSinPassword } = usuario;
+      const {
+        passwordHash: _,
+        img,
+        UsuariosRenglones: renglonesRelacion,
+        ...usuarioSinPassword
+      } = usuarioCompleto;
       const fotoPerfil = this.normalizarImagen(img);
+      const renglonesPermitidos =
+        renglonesRelacion?.map((item) => item.renglon).filter((r) => r !== null && r !== undefined) ?? [];
 
       const response = {
         usuario: {
           ...usuarioSinPassword,
           fotoPerfil,
           rol: {
-            idRoles: usuario.Roles?.idRoles,
-            nombreRol: usuario.Roles?.nombreRol,
-            descripcion: usuario.Roles?.descripcion,
+            idRoles: usuarioCompleto.Roles?.idRoles,
+            nombreRol: usuarioCompleto.Roles?.nombreRol,
+            descripcion: usuarioCompleto.Roles?.descripcion,
             permisos,
           },
+          renglonesPermitidos,
         },
       };
 
       this.logger.log(
-        `Login exitoso para usuario: ${correo} con rol: ${usuario.Roles?.nombreRol}`,
+        `Login exitoso para usuario: ${correo} con rol: ${usuarioCompleto.Roles?.nombreRol}`,
       );
       return response;
     } catch (error) {

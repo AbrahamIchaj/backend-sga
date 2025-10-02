@@ -103,9 +103,27 @@ export class ReajustesController {
   }
 
   @Get('catalogo/buscar')
-  async buscarCatalogo(@Query('q') q: string) {
+  async buscarCatalogo(
+    @Query('q') q: string,
+    @Query('idUsuario') idUsuario?: string,
+    @Query('renglones') renglones?: string,
+  ) {
     try {
-      const data = await this.reajustesService.buscarCatalogo(q);
+      const parsedId = idUsuario ? Number(idUsuario) : undefined;
+      const parsedRenglones = renglones
+        ? renglones
+            .split(',')
+            .map((value) => Number(value.trim()))
+            .filter((value) => !Number.isNaN(value))
+        : undefined;
+
+      const data = await this.reajustesService.buscarCatalogo(q, {
+        idUsuario: parsedId,
+        renglones:
+          parsedRenglones && parsedRenglones.length
+            ? parsedRenglones
+            : undefined,
+      });
       return { success: true, data };
     } catch (error) {
       this.logger.error(

@@ -11,6 +11,10 @@ import {
   CreateCompraDetalleDto,
   CreateCompraLoteDto,
 } from '../dto/create-compra.dto';
+import {
+  obtenerRenglonesPermitidos,
+  validarRenglonPermitido,
+} from '../../common/utils/renglones.util';
 import { UpdateCompraDto } from '../dto/update-compra.dto';
 
 @Injectable()
@@ -23,6 +27,17 @@ export class ComprasService {
     if (!dto.detalles?.length) {
       throw new BadRequestException(
         'La compra debe incluir al menos un detalle',
+      );
+    }
+
+    const renglonesPermitidos = await obtenerRenglonesPermitidos(
+      this.prisma,
+      idUsuario,
+    );
+
+    if (!renglonesPermitidos.length) {
+      throw new BadRequestException(
+        'El usuario no tiene renglones autorizados para registrar compras',
       );
     }
 
@@ -61,6 +76,17 @@ export class ComprasService {
       );
 
       for (const det of dto.detalles) {
+        const renglonCatalogo = await this.obtenerRenglonDetalle(tx, det);
+        if (!validarRenglonPermitido(renglonesPermitidos, renglonCatalogo)) {
+          throw new BadRequestException(
+            `No tienes permisos para registrar insumos del renglón ${
+              renglonCatalogo ?? 'desconocido'
+            }`,
+          );
+        }
+
+        det.renglon = renglonCatalogo ?? det.renglon;
+
         totalFactura += Number(det.precioTotalFactura || 0);
 
         const detalle = await tx.ingresoComprasDetalle.create({
@@ -399,5 +425,36 @@ export class ComprasService {
       select: { idCatalogoInsumos: true },
     });
     return det?.idCatalogoInsumos || 0;
+  }
+
+  private async obtenerRenglonDetalle(
+    tx: Prisma.TransactionClient,
+    detalle: CreateCompraDetalleDto,
+  ): Promise<number | null> {
+    if (typeof detalle.renglon === 'number') {
+      return detalle.renglon;
+    }
+
+    if (detalle.idCatalogoInsumos) {
+      const catalogo = await tx.catalogoInsumos.findUnique({
+        where: { idCatalogoInsumos: detalle.idCatalogoInsumos },
+        select: { renglon: true },
+      });
+      if (catalogo) {
+        return catalogo.renglon;
+      }
+    }
+
+    if (detalle.codigoInsumo) {
+      const catalogo = await tx.catalogoInsumos.findFirst({
+        where: { codigoInsumo: detalle.codigoInsumo },
+        select: { renglon: true },
+      });
+      if (catalogo) {
+        return catalogo.renglon;
+      }
+    }
+
+    return null;
   }
 }

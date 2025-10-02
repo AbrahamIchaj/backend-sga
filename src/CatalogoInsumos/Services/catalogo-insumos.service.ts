@@ -1,15 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CatalogoInsumos } from '@prisma/client';
+import { CatalogoInsumos, Prisma } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
+import { obtenerRenglonesPermitidos } from '../../common/utils/renglones.util';
 
 const readFile = promisify(fs.readFile);
 const { parse } = require('csv-parse');
 
 interface CsvRecord {
   [key: string]: string;
+}
+
+interface RenglonesOptions {
+  idUsuario?: number;
+  renglones?: number[];
 }
 
 @Injectable()
@@ -281,16 +287,26 @@ export class CatalogoInsumosService {
     }
   }
 
-  async findAll(): Promise<CatalogoInsumos[]> {
+  async findAll(options?: RenglonesOptions): Promise<CatalogoInsumos[]> {
     try {
-      // Usar SQL directo con los nombres de columnas correctos
-      const sql = `
-        SELECT * FROM "CatalogoInsumos" 
-        ORDER BY "codigoInsumo" ASC, "idCatalogoInsumos" ASC
-      `;
+      let where: Prisma.CatalogoInsumosWhereInput | undefined;
 
-      const insumos = await this.prisma.$queryRawUnsafe(sql);
-      return insumos as CatalogoInsumos[];
+      const permitidos = await this.resolverRenglones(options);
+      if (permitidos) {
+        if (permitidos.length === 0) {
+          return [];
+        }
+        where = { renglon: { in: permitidos } };
+      }
+
+      const insumos = await this.prisma.catalogoInsumos.findMany({
+        where,
+        orderBy: [
+          { codigoInsumo: 'asc' },
+          { idCatalogoInsumos: 'asc' },
+        ],
+      });
+      return insumos;
     } catch (error) {
       this.logger.error(`Error al obtener insumos: ${error.message}`);
 
@@ -307,14 +323,32 @@ export class CatalogoInsumosService {
     }
   }
 
-  async findByCodigo(codigo: number): Promise<CatalogoInsumos[]> {
+  async findByCodigo(
+    codigo: number,
+    options?: RenglonesOptions,
+  ): Promise<CatalogoInsumos[]> {
     try {
       if (!Number.isInteger(codigo)) {
         return [];
       }
 
+      let where: Prisma.CatalogoInsumosWhereInput = {
+        codigoInsumo: codigo,
+      };
+
+      const permitidos = await this.resolverRenglones(options);
+      if (permitidos) {
+        if (permitidos.length === 0) {
+          return [];
+        }
+        where = {
+          ...where,
+          renglon: { in: permitidos },
+        };
+      }
+
       return await this.prisma.catalogoInsumos.findMany({
-        where: { codigoInsumo: codigo },
+        where,
         orderBy: [{ codigoInsumo: 'asc' }, { codigoPresentacion: 'asc' }],
       });
     } catch (error) {
@@ -325,34 +359,47 @@ export class CatalogoInsumosService {
     }
   }
 
-  async search(query: string): Promise<CatalogoInsumos[]> {
+  async search(
+    query: string,
+    options?: RenglonesOptions,
+  ): Promise<CatalogoInsumos[]> {
     try {
       if (!query.trim()) {
         return [];
       }
 
+      const where: Prisma.CatalogoInsumosWhereInput = {
+        OR: [
+          {
+            nombreInsumo: {
+              contains: query.trim(),
+              mode: 'insensitive',
+            },
+          },
+          {
+            codigoInsumo: {
+              equals: parseInt(query.trim()) || undefined,
+            },
+          },
+          {
+            caracteristicas: {
+              contains: query.trim(),
+              mode: 'insensitive',
+            },
+          },
+        ],
+      };
+
+      const permitidos = await this.resolverRenglones(options);
+      if (permitidos) {
+        if (permitidos.length === 0) {
+          return [];
+        }
+        where.renglon = { in: permitidos };
+      }
+
       const insumos = await this.prisma.catalogoInsumos.findMany({
-        where: {
-          OR: [
-            {
-              nombreInsumo: {
-                contains: query.trim(),
-                mode: 'insensitive',
-              },
-            },
-            {
-              codigoInsumo: {
-                equals: parseInt(query.trim()) || undefined,
-              },
-            },
-            {
-              caracteristicas: {
-                contains: query.trim(),
-                mode: 'insensitive',
-              },
-            },
-          ],
-        },
+        where,
         orderBy: {
           nombreInsumo: 'asc',
         },
@@ -483,5 +530,26 @@ export class CatalogoInsumosService {
       this.logger.error(`Error de depuración: ${error.message}`);
       throw error;
     }
+  }
+
+  private async resolverRenglones(
+    options?: RenglonesOptions,
+  ): Promise<number[] | null> {
+    if (!options) {
+      return null;
+    }
+
+    if (options.renglones && options.renglones.length > 0) {
+      return options.renglones;
+    }
+
+    if (options.idUsuario) {
+      return await obtenerRenglonesPermitidos(
+        this.prisma,
+        options.idUsuario,
+      );
+    }
+
+    return null;
   }
 }

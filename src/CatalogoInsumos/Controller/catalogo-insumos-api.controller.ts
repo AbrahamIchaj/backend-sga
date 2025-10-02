@@ -19,11 +19,14 @@ export class CatalogoInsumosApiController {
    * Obtener todos los insumos del catálogo
    */
   @Get()
-  async findAll() {
+  async findAll(@Query() query: Record<string, any>) {
     try {
       this.logger.log('Obteniendo todos los insumos del catálogo');
 
+      const filtros = this.parseRenglonFilters(query);
+
       const insumos = await this.prisma.catalogoInsumos.findMany({
+        where: filtros,
         orderBy: [{ codigoInsumo: 'asc' }, { codigoPresentacion: 'asc' }],
       });
 
@@ -51,12 +54,17 @@ export class CatalogoInsumosApiController {
    * Buscar insumo por código exacto - retorna todas las presentaciones
    */
   @Get('buscar-por-codigo/:codigo')
-  async findByCode(@Param('codigo', ParseIntPipe) codigo: number) {
+  async findByCode(
+    @Param('codigo', ParseIntPipe) codigo: number,
+    @Query() query: Record<string, any>,
+  ) {
     try {
       this.logger.log(`Buscando insumos con código: ${codigo}`);
 
+      const filtros = this.parseRenglonFilters(query);
+
       const insumos = await this.prisma.catalogoInsumos.findMany({
-        where: { codigoInsumo: codigo },
+        where: { codigoInsumo: codigo, ...filtros },
         orderBy: { codigoPresentacion: 'asc' },
       });
 
@@ -107,11 +115,12 @@ export class CatalogoInsumosApiController {
    */
   @Get('search')
   async searchByTerm(
-    @Query('q') query: string,
+    @Query('q') term: string,
     @Query('limit') limit?: string,
+    @Query() queryParams?: Record<string, any>,
   ) {
     try {
-      if (!query || query.trim().length === 0) {
+      if (!term || term.trim().length === 0) {
         return {
           success: false,
           message: 'Se requiere un término de búsqueda',
@@ -122,16 +131,19 @@ export class CatalogoInsumosApiController {
 
       const limitNum = limit ? parseInt(limit, 10) : 50;
       this.logger.log(
-        `Buscando insumos con término: "${query}" (límite: ${limitNum})`,
+        `Buscando insumos con término: "${term}" (límite: ${limitNum})`,
       );
+
+      const filtros = this.parseRenglonFilters(queryParams);
 
       const insumos = await this.prisma.catalogoInsumos.findMany({
         where: {
           OR: [
-            { nombreInsumo: { contains: query, mode: 'insensitive' } },
-            { caracteristicas: { contains: query, mode: 'insensitive' } },
-            { nombrePresentacion: { contains: query, mode: 'insensitive' } },
+            { nombreInsumo: { contains: term, mode: 'insensitive' } },
+            { caracteristicas: { contains: term, mode: 'insensitive' } },
+            { nombrePresentacion: { contains: term, mode: 'insensitive' } },
           ],
+          ...filtros,
         },
         orderBy: [{ codigoInsumo: 'asc' }, { codigoPresentacion: 'asc' }],
         take: limitNum,
@@ -145,7 +157,7 @@ export class CatalogoInsumosApiController {
       };
     } catch (error) {
       this.logger.error(
-        `Error en búsqueda por término "${query}": ${error.message}`,
+        `Error en búsqueda por término "${term}": ${error.message}`,
       );
       return {
         success: false,
@@ -163,11 +175,14 @@ export class CatalogoInsumosApiController {
   @Get('presentaciones/:codigoInsumo')
   async getPresentaciones(
     @Param('codigoInsumo', ParseIntPipe) codigoInsumo: number,
+    @Query() query: Record<string, any>,
   ) {
     try {
       this.logger.log(
         `Obteniendo presentaciones para código de insumo: ${codigoInsumo}`,
       );
+
+      const filtros = this.parseRenglonFilters(query);
 
       const presentaciones = await this.prisma.catalogoInsumos.findMany({
         where: { codigoInsumo },
@@ -181,7 +196,13 @@ export class CatalogoInsumosApiController {
         orderBy: { codigoPresentacion: 'asc' },
       });
 
-      if (presentaciones.length === 0) {
+      const filtradas = filtros?.renglon?.in
+        ? presentaciones.filter((item) =>
+            (filtros.renglon?.in as number[]).includes(item.renglon),
+          )
+        : presentaciones;
+
+      if (filtradas.length === 0) {
         return {
           success: false,
           message: `No se encontraron presentaciones para el código ${codigoInsumo}`,
@@ -192,9 +213,9 @@ export class CatalogoInsumosApiController {
 
       return {
         success: true,
-        message: `Se encontraron ${presentaciones.length} presentaciones`,
-        data: presentaciones,
-        total: presentaciones.length,
+        message: `Se encontraron ${filtradas.length} presentaciones`,
+        data: filtradas,
+        total: filtradas.length,
       };
     } catch (error) {
       this.logger.error(
@@ -274,5 +295,35 @@ export class CatalogoInsumosApiController {
         data: null,
       };
     }
+  }
+
+  private parseRenglonFilters(query?: Record<string, any>) {
+    if (!query) {
+      return undefined;
+    }
+
+    const renglonesRaw = query.renglones ?? query.allowedRenglones;
+    let renglones: number[] = [];
+
+    if (typeof renglonesRaw === 'string') {
+      renglones = renglonesRaw
+        .split(',')
+        .map((value: string) => Number(value.trim()))
+        .filter((value) => Number.isFinite(value));
+    } else if (Array.isArray(renglonesRaw)) {
+      renglones = renglonesRaw
+        .map((value: any) => Number(String(value).trim()))
+        .filter((value) => Number.isFinite(value));
+    }
+
+    if (!renglones.length) {
+      return undefined;
+    }
+
+    return {
+      renglon: {
+        in: renglones,
+      },
+    };
   }
 }

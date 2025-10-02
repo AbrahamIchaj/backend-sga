@@ -283,6 +283,7 @@ export class CatalogoInsumosController {
   async search(@Req() req: any) {
     try {
       const query = req.query?.query || req.query?.q;
+      const options = this.parseRenglonOptions(req.query);
 
       if (!query) {
         throw new HttpException(
@@ -291,7 +292,10 @@ export class CatalogoInsumosController {
         );
       }
 
-      const insumos = await this.catalogoInsumosService.search(query);
+      const insumos = await this.catalogoInsumosService.search(
+        query,
+        options,
+      );
 
       return {
         success: true,
@@ -313,9 +317,11 @@ export class CatalogoInsumosController {
   }
 
   @Get()
-  async findAll() {
+  async findAll(@Query() query: Record<string, any>) {
     try {
-      const resultado = await this.catalogoInsumosService.findAll();
+      const resultado = await this.catalogoInsumosService.findAll(
+        this.parseRenglonOptions(query),
+      );
       this.logger.log(`Se encontraron ${resultado.length} registros`);
       return resultado;
     } catch (error) {
@@ -328,9 +334,15 @@ export class CatalogoInsumosController {
   }
 
   @Get('codigo/:codigo')
-  async findByCodigo(@Param('codigo', ParseIntPipe) codigo: number) {
+  async findByCodigo(
+    @Param('codigo', ParseIntPipe) codigo: number,
+    @Query() query: Record<string, any>,
+  ) {
     try {
-      const resultados = await this.catalogoInsumosService.findByCodigo(codigo);
+      const resultados = await this.catalogoInsumosService.findByCodigo(
+        codigo,
+        this.parseRenglonOptions(query),
+      );
       return {
         success: true,
         message: resultados.length
@@ -361,5 +373,47 @@ export class CatalogoInsumosController {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  private parseRenglonOptions(query: Record<string, any>): {
+    idUsuario?: number;
+    renglones?: number[];
+  } | undefined {
+    if (!query) {
+      return undefined;
+    }
+
+    const idUsuario = Number(query.idUsuario ?? query.usuarioId);
+    const renglonesRaw = query.renglones ?? query.allowedRenglones;
+
+    let renglones: number[] | undefined;
+
+    if (typeof renglonesRaw === 'string' && renglonesRaw.trim().length > 0) {
+      renglones = renglonesRaw
+        .split(',')
+        .map((value: string) => Number(value.trim()))
+        .filter((value: number) => Number.isFinite(value));
+    }
+
+    if (Array.isArray(renglonesRaw)) {
+      renglones = renglonesRaw
+        .map((value: any) => Number(String(value).trim()))
+        .filter((value: number) => Number.isFinite(value));
+    }
+
+    const options: {
+      idUsuario?: number;
+      renglones?: number[];
+    } = {};
+
+    if (Number.isFinite(idUsuario) && idUsuario > 0) {
+      options.idUsuario = idUsuario;
+    }
+
+    if (renglones && renglones.length > 0) {
+      options.renglones = renglones;
+    }
+
+    return Object.keys(options).length ? options : undefined;
   }
 }

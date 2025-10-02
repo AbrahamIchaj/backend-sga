@@ -168,6 +168,7 @@ model Usuarios {
   Reajustes              Reajustes[]
   Roles                  Roles                    @relation(fields: [idRol], references: [idRoles])
   LogPasswordsTemporales LogPasswordsTemporales[]
+  UsuariosRenglones      UsuariosRenglones[]
 }
 
 model LogPasswordsTemporales {
@@ -261,6 +262,17 @@ model HistorialInventario {
   Despacho          Despacho?        @relation(fields: [idDespacho], references: [idDespacho])
   Reajustes         Reajustes?       @relation(fields: [idReajuste], references: [idReajuste])
   Usuarios          Usuarios         @relation(fields: [idUsuario], references: [idUsuario])
+}
+
+model UsuariosRenglones {
+  idUsuarioRenglon Int      @id @default(autoincrement())
+  idUsuario        Int
+  renglon          Int
+  activo           Boolean  @default(true)
+  fechaAsignacion  DateTime @default(now())
+  Usuario          Usuarios @relation(fields: [idUsuario], references: [idUsuario], onDelete: Cascade)
+
+  @@unique([idUsuario, renglon])
 }
 
 model Abastecimientos {

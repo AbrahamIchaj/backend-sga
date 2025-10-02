@@ -8,7 +8,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { HashService } from './hash.service';
 import { PasswordTemporalService } from './password-temporal.service';
-import { Usuarios, Roles, Prisma } from '@prisma/client';
+import { Usuarios, Roles, Prisma, UsuariosRenglones } from '@prisma/client';
 import { CreateUsuarioDto } from '../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../dto/update-usuario.dto';
 import { AdminChangePasswordDto } from '../dto/password.dto';
@@ -16,9 +16,12 @@ import { UpdatePerfilDto } from '../dto/update-perfil.dto';
 
 type UsuarioConRol = Usuarios & {
   Roles: Roles | null;
+  UsuariosRenglones: Array<Pick<UsuariosRenglones, 'renglon' | 'activo'>>;
 };
 
-type UsuarioSinPassword = Omit<UsuarioConRol, 'passwordHash'>;
+type UsuarioSinPassword = Omit<UsuarioConRol, 'passwordHash' | 'UsuariosRenglones'> & {
+  renglonesPermitidos: number[];
+};
 
 @Injectable()
 export class UsuariosService {
@@ -29,6 +32,50 @@ export class UsuariosService {
     private hashService: HashService,
     private passwordTemporalService: PasswordTemporalService,
   ) {}
+
+  private extraerRenglonesPermitidos(
+    registros?: Array<Pick<UsuariosRenglones, 'renglon' | 'activo'>>,
+  ): number[] {
+    if (!registros || registros.length === 0) {
+      return [];
+    }
+
+    const unicos = new Set<number>();
+    registros.forEach((registro) => {
+      if (registro.activo && typeof registro.renglon === 'number') {
+        unicos.add(registro.renglon);
+      }
+    });
+
+    return Array.from(unicos.values()).sort((a, b) => a - b);
+  }
+
+  private normalizarRenglonesEntrada(
+    renglones?: Array<number | string> | null,
+  ): number[] {
+    if (!Array.isArray(renglones) || renglones.length === 0) {
+      return [];
+    }
+
+    const unicos = new Set<number>();
+    renglones.forEach((valor) => {
+      const numero = Number(valor);
+      if (Number.isInteger(numero) && numero >= 0) {
+        unicos.add(numero);
+      }
+    });
+
+    return Array.from(unicos.values()).sort((a, b) => a - b);
+  }
+
+  private mapearUsuarioSinPassword(usuario: UsuarioConRol): UsuarioSinPassword {
+    const { passwordHash: _password, UsuariosRenglones, ...resto } = usuario;
+
+    return {
+      ...resto,
+      renglonesPermitidos: this.extraerRenglonesPermitidos(UsuariosRenglones),
+    };
+  }
 
   async create(
     createUsuarioDto: CreateUsuarioDto,
@@ -81,6 +128,12 @@ export class UsuariosService {
         },
         include: {
           Roles: true,
+          UsuariosRenglones: {
+            select: {
+              renglon: true,
+              activo: true,
+            },
+          },
         },
       });
 
@@ -88,8 +141,7 @@ export class UsuariosService {
         `Usuario creado exitosamente: ${usuario.correo} (ID: ${usuario.idUsuario})`,
       );
 
-      const { passwordHash: _, ...usuarioSinPassword } = usuario;
-      return usuarioSinPassword;
+      return this.mapearUsuarioSinPassword(usuario);
     } catch (error) {
       this.logger.error(`Error al crear usuario: ${error.message}`);
       throw error;
@@ -101,6 +153,12 @@ export class UsuariosService {
       const usuarios = await this.prisma.usuarios.findMany({
         include: {
           Roles: true,
+          UsuariosRenglones: {
+            select: {
+              renglon: true,
+              activo: true,
+            },
+          },
         },
         orderBy: {
           fechaCreacion: 'desc',
@@ -108,8 +166,8 @@ export class UsuariosService {
       });
 
       // Remover hash de contraseña de todos los usuarios
-      const usuariosSinPassword = usuarios.map(
-        ({ passwordHash, ...usuario }) => usuario,
+      const usuariosSinPassword = usuarios.map((usuario) =>
+        this.mapearUsuarioSinPassword(usuario),
       );
 
       this.logger.log(`Se encontraron ${usuariosSinPassword.length} usuarios`);
@@ -126,6 +184,12 @@ export class UsuariosService {
         where: { idUsuario: id },
         include: {
           Roles: true,
+          UsuariosRenglones: {
+            select: {
+              renglon: true,
+              activo: true,
+            },
+          },
         },
       });
 
@@ -139,7 +203,9 @@ export class UsuariosService {
         data: { ultimoAcceso: new Date() },
       });
 
-      const { passwordHash, ...usuarioSinPassword } = usuario;
+      usuario.ultimoAcceso = new Date();
+
+      const usuarioSinPassword = this.mapearUsuarioSinPassword(usuario);
 
       this.logger.log(`Usuario encontrado: ${usuario.correo} (ID: ${id})`);
       return usuarioSinPassword;
@@ -157,6 +223,12 @@ export class UsuariosService {
         where: { idUsuario: id },
         include: {
           Roles: true,
+          UsuariosRenglones: {
+            select: {
+              renglon: true,
+              activo: true,
+            },
+          },
         },
       });
 
@@ -257,6 +329,12 @@ export class UsuariosService {
         data,
         include: {
           Roles: true,
+          UsuariosRenglones: {
+            select: {
+              renglon: true,
+              activo: true,
+            },
+          },
         },
       });
 
@@ -335,10 +413,16 @@ export class UsuariosService {
         },
         include: {
           Roles: true,
+          UsuariosRenglones: {
+            select: {
+              renglon: true,
+              activo: true,
+            },
+          },
         },
       });
 
-      const { passwordHash, ...usuarioSinPassword } = usuario;
+      const usuarioSinPassword = this.mapearUsuarioSinPassword(usuario);
 
       this.logger.log(`Usuario actualizado: ${usuario.correo} (ID: ${id})`);
       return usuarioSinPassword;
@@ -401,7 +485,13 @@ export class UsuariosService {
   }
 
   private mapearPerfil(usuario: UsuarioConRol) {
-    const { passwordHash: _password, Roles: rol, img, ...resto } = usuario;
+    const {
+      passwordHash: _password,
+      Roles: rol,
+      img,
+      UsuariosRenglones,
+      ...resto
+    } = usuario;
 
     const foto = this.normalizarImagen(img as unknown as Buffer | null);
 
@@ -415,6 +505,7 @@ export class UsuariosService {
           }
         : null,
       fotoPerfil: foto,
+      renglonesPermitidos: this.extraerRenglonesPermitidos(UsuariosRenglones),
     };
   }
 
@@ -566,7 +657,15 @@ export class UsuariosService {
       // Buscar usuario por correo
       const usuario = await this.prisma.usuarios.findUnique({
         where: { correo: correo.toLowerCase().trim() },
-        include: { Roles: true },
+        include: {
+          Roles: true,
+          UsuariosRenglones: {
+            select: {
+              renglon: true,
+              activo: true,
+            },
+          },
+        },
       });
 
       if (!usuario || !usuario.activo) {
@@ -612,7 +711,8 @@ export class UsuariosService {
           data: { ultimoAcceso: new Date() },
         });
 
-        const { passwordHash, ...usuarioSinPassword } = usuario;
+        usuario.ultimoAcceso = new Date();
+        const usuarioSinPassword = this.mapearUsuarioSinPassword(usuario);
 
         this.logger.log(
           `Login exitoso con contraseña temporal para: ${correo}`,
@@ -647,7 +747,8 @@ export class UsuariosService {
           data: { ultimoAcceso: new Date() },
         });
 
-        const { passwordHash, ...usuarioSinPassword } = usuario;
+        usuario.ultimoAcceso = new Date();
+        const usuarioSinPassword = this.mapearUsuarioSinPassword(usuario);
 
         this.logger.log(`Login exitoso para: ${correo}`);
         return {
@@ -682,12 +783,20 @@ export class UsuariosService {
             { Roles: { nombreRol: { contains: query, mode: 'insensitive' } } },
           ],
         },
-        include: { Roles: true },
+        include: {
+          Roles: true,
+          UsuariosRenglones: {
+            select: {
+              renglon: true,
+              activo: true,
+            },
+          },
+        },
         orderBy: { nombres: 'asc' },
       });
 
-      const usuariosSinPassword = usuarios.map(
-        ({ passwordHash, ...usuario }) => usuario,
+      const usuariosSinPassword = usuarios.map((usuario) =>
+        this.mapearUsuarioSinPassword(usuario),
       );
 
       this.logger.log(
@@ -784,5 +893,150 @@ export class UsuariosService {
       );
       throw error;
     }
+  }
+  async actualizarRenglones(
+    idUsuario: number,
+    renglones: number[],
+  ): Promise<UsuarioSinPassword> {
+    const usuarioExistente = await this.prisma.usuarios.findUnique({
+      where: { idUsuario },
+    });
+
+    if (!usuarioExistente) {
+      throw new NotFoundException(
+        `Usuario con ID ${idUsuario} no encontrado`,
+      );
+    }
+
+    const renglonesNormalizados = this.normalizarRenglonesEntrada(renglones);
+
+    await this.prisma.$transaction(async (tx) => {
+      const registrosActuales = await tx.usuariosRenglones.findMany({
+        where: { idUsuario },
+      });
+
+      const renglonesSet = new Set(renglonesNormalizados);
+
+      const aDesactivar = registrosActuales.filter(
+        (registro) => !renglonesSet.has(registro.renglon) && registro.activo,
+      );
+
+      const aReactivar = registrosActuales.filter(
+        (registro) => renglonesSet.has(registro.renglon) && !registro.activo,
+      );
+
+      const aCrear = renglonesNormalizados.filter(
+        (renglon) =>
+          !registrosActuales.some(
+            (registro) => registro.renglon === renglon,
+          ),
+      );
+
+      if (aDesactivar.length > 0) {
+        await Promise.all(
+          aDesactivar.map((registro) =>
+            tx.usuariosRenglones.update({
+              where: { idUsuarioRenglon: registro.idUsuarioRenglon },
+              data: {
+                activo: false,
+              },
+            }),
+          ),
+        );
+      }
+
+      if (aReactivar.length > 0) {
+        await Promise.all(
+          aReactivar.map((registro) =>
+            tx.usuariosRenglones.update({
+              where: { idUsuarioRenglon: registro.idUsuarioRenglon },
+              data: {
+                activo: true,
+                fechaAsignacion: new Date(),
+              },
+            }),
+          ),
+        );
+      }
+
+      if (aCrear.length > 0) {
+        await Promise.all(
+          aCrear.map((renglon) =>
+            tx.usuariosRenglones.create({
+              data: {
+                idUsuario,
+                renglon,
+                activo: true,
+              },
+            }),
+          ),
+        );
+      }
+    });
+
+    const usuarioActualizado = await this.prisma.usuarios.findUnique({
+      where: { idUsuario },
+      include: {
+        Roles: true,
+        UsuariosRenglones: {
+          select: {
+            renglon: true,
+            activo: true,
+          },
+        },
+      },
+    });
+
+    if (!usuarioActualizado) {
+      throw new NotFoundException(
+        `Usuario con ID ${idUsuario} no encontrado después de actualizar renglones`,
+      );
+    }
+
+    this.logger.log(
+      `Renglones actualizados para usuario ${usuarioActualizado.correo} (ID: ${idUsuario}). Renglones asignados: [${this.extraerRenglonesPermitidos(usuarioActualizado.UsuariosRenglones).join(', ')}]`,
+    );
+
+    return this.mapearUsuarioSinPassword(usuarioActualizado);
+  }
+
+  async obtenerRenglonesDisponibles(): Promise<number[]> {
+    const [catalogo, inventario, usuarios, abastecimientos] = await Promise.all([
+      this.prisma.catalogoInsumos.findMany({
+        select: { renglon: true },
+        distinct: ['renglon'],
+      }),
+      this.prisma.inventario.findMany({
+        select: { renglon: true },
+        distinct: ['renglon'],
+      }),
+      this.prisma.usuariosRenglones.findMany({
+        where: { activo: true },
+        select: { renglon: true },
+        distinct: ['renglon'],
+      }),
+      this.prisma.abastecimientos.findMany({
+        where: { activo: true },
+        select: { renglon: true },
+        distinct: ['renglon'],
+      }),
+    ]);
+
+    const unicos = new Set<number>();
+
+    const agregar = (items: Array<{ renglon: number | null }>) => {
+      items.forEach(({ renglon }) => {
+        if (typeof renglon === 'number') {
+          unicos.add(renglon);
+        }
+      });
+    };
+
+    agregar(catalogo);
+    agregar(inventario);
+    agregar(usuarios);
+    agregar(abastecimientos);
+
+    return Array.from(unicos.values()).sort((a, b) => a - b);
   }
 }

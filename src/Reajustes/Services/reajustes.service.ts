@@ -13,6 +13,10 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
+  obtenerRenglonesPermitidos,
+  validarRenglonPermitido,
+} from '../../common/utils/renglones.util';
+import {
   CreateReajusteDto,
   CreateReajusteDetalleDto,
 } from '../dto/create-reajuste.dto';
@@ -66,6 +70,17 @@ export class ReajustesService {
       ? new Date(dto.fechaReajuste)
       : new Date();
 
+    const renglonesPermitidos = await obtenerRenglonesPermitidos(
+      this.prisma,
+      idUsuario,
+    );
+
+    if (!renglonesPermitidos.length) {
+      throw new BadRequestException(
+        'El usuario no tiene renglones autorizados para registrar reajustes',
+      );
+    }
+
     const resultado = await this.prisma.$transaction(async (tx) => {
       const reajuste = await tx.reajustes.create({
         data: {
@@ -87,6 +102,14 @@ export class ReajustesService {
         }
 
         const ctx = await this.resolveDetalleContext(tx, detalleDto);
+
+        if (!validarRenglonPermitido(renglonesPermitidos, ctx.renglon)) {
+          throw new BadRequestException(
+            `No tienes permisos para operar con insumos del renglón ${
+              ctx.renglon ?? 'desconocido'
+            } (detalle #${index + 1})`,
+          );
+        }
 
         let inventario = ctx.inventario;
         const movimientoEsEntrada = dto.tipoReajuste === 1;
@@ -499,27 +522,41 @@ export class ReajustesService {
     };
   }
 
-  async buscarCatalogo(term: string) {
+  async buscarCatalogo(
+    term: string,
+    options?: { idUsuario?: number; renglones?: number[] },
+  ) {
     if (!term) {
       return [];
     }
 
     const parsed = Number(term);
+    const renglones = await this.resolverRenglones(options);
+
+    if (Array.isArray(renglones) && renglones.length === 0) {
+      return [];
+    }
+
+    const where: Prisma.CatalogoInsumosWhereInput = {
+      OR: [
+        { nombreInsumo: { contains: term, mode: 'insensitive' } },
+        { caracteristicas: { contains: term, mode: 'insensitive' } },
+        ...(Number.isNaN(parsed)
+          ? []
+          : [
+              { codigoInsumo: parsed },
+              { codigoPresentacion: parsed },
+              { renglon: parsed },
+            ]),
+      ],
+    };
+
+    if (Array.isArray(renglones) && renglones.length > 0) {
+      where.renglon = { in: renglones };
+    }
 
     return this.prisma.catalogoInsumos.findMany({
-      where: {
-        OR: [
-          { nombreInsumo: { contains: term, mode: 'insensitive' } },
-          { caracteristicas: { contains: term, mode: 'insensitive' } },
-          ...(Number.isNaN(parsed)
-            ? []
-            : [
-                { codigoInsumo: parsed },
-                { codigoPresentacion: parsed },
-                { renglon: parsed },
-              ]),
-        ],
-      },
+      where,
       take: 15,
       orderBy: { nombreInsumo: 'asc' },
     });
@@ -643,5 +680,27 @@ export class ReajustesService {
         catalogo?.idCatalogoInsumos ?? detalle.idCatalogoInsumos ?? null,
       precioUnitario,
     };
+  }
+
+  private async resolverRenglones(
+    options?: { idUsuario?: number; renglones?: number[] },
+  ): Promise<number[] | null> {
+    if (!options) {
+      return null;
+    }
+
+    if (options.renglones && options.renglones.length > 0) {
+      return options.renglones;
+    }
+
+    if (options.idUsuario) {
+      const permitidos = await obtenerRenglonesPermitidos(
+        this.prisma,
+        options.idUsuario,
+      );
+      return permitidos.length ? permitidos : [];
+    }
+
+    return null;
   }
 }
