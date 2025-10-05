@@ -90,6 +90,10 @@ async function main() {
       permiso: 'GESTIONAR_REAJUSTES',
       descripcion: 'Permite gestionar los reajustes de inventario.',
     },
+    {
+      permiso: 'GESTIONAR_DASHBOARD',
+      descripcion: 'Permite gestionar el dashboard.',
+    },
   ];
 
   for (const p of permisos) {
