@@ -7,6 +7,7 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import type { FastifyInstance } from 'fastify';
+import { networkConfig, frontendBaseUrl, backendBaseUrl } from '@shared-config/network.config';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -14,7 +15,8 @@ async function bootstrap() {
     new FastifyAdapter(),
   );
 
-  const PORT_AUX = 3001;
+  const PORT_AUX = networkConfig.backendPort ?? 3001;
+  const HOST_AUX = networkConfig.host ?? '0.0.0.0';
 
   // Dirección de Prefijo global de las API's
   app.setGlobalPrefix('api/v1');
@@ -32,8 +34,12 @@ async function bootstrap() {
   );
 
   // Configurar CORS y otros middlewares
+  const defaultOrigins = [frontendBaseUrl, backendBaseUrl];
+  const allowedOrigins =
+    process.env.CORS_ORIGIN?.split(',')?.filter(Boolean) ?? defaultOrigins;
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') || true,
+    origin: allowedOrigins.length > 0 ? allowedOrigins : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
     allowedHeaders: [
@@ -62,7 +68,10 @@ async function bootstrap() {
   });
 
   // Iniciar la aplicación
-  await app.listen(process.env.PORT ?? `${PORT_AUX}`, '0.0.0.0');
+  const listenPort = Number(process.env.PORT ?? PORT_AUX);
+  const listenHost = process.env.HOST ?? HOST_AUX;
+
+  await app.listen(listenPort, listenHost);
 }
 
 void bootstrap();
