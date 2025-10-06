@@ -100,6 +100,7 @@ export type CompraResumen = {
   numeroFactura: number;
   serieFactura: string;
   tipoCompra: string;
+  noKardex: number;
   totalItems: number;
   totalCantidad: number;
   totalFactura: number;

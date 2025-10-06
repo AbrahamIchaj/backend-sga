@@ -1,4 +1,4 @@
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BASE_URL || 'http://192.88.1.122:3000';
 const API_PREFIX = process.env.API_PREFIX || '/api/v1';
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
 

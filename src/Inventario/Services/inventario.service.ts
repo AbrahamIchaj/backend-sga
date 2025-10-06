@@ -144,6 +144,7 @@ export class InventarioService {
           presentacion: item.presentacion,
           unidadMedida: item.unidadMedida,
           lote: item.lote,
+          noKardex: item.noKardex,
           cartaCompromiso: item.cartaCompromiso ?? false,
           mesesDevolucion: item.mesesDevolucion ?? null,
           observacionesDevolucion: item.observacionesDevolucion ?? null,
@@ -216,6 +217,7 @@ export class InventarioService {
         presentacion: inventario.presentacion,
         unidadMedida: inventario.unidadMedida,
         lote: inventario.lote,
+  noKardex: inventario.noKardex,
         cartaCompromiso: inventario.cartaCompromiso ?? false,
         mesesDevolucion: inventario.mesesDevolucion ?? null,
         observacionesDevolucion: inventario.observacionesDevolucion ?? null,
@@ -307,6 +309,7 @@ export class InventarioService {
           cantidad: item.cantidadDisponible,
           precioUnitario: Number(item.precioUnitario),
           diasParaVencer,
+          noKardex: item.noKardex,
         });
       });
 

@@ -41,6 +41,7 @@ interface DetalleContext {
   observacionesDevolucion?: string | null;
   idCatalogoInsumos?: number | null;
   precioUnitario: number;
+  noKardex: number | null;
 }
 
 @Injectable()
@@ -149,6 +150,12 @@ export class ReajustesService {
             });
           } else {
             const nuevoPrecioUnitario = detalleDto.precioUnitario ?? 0;
+            const nuevoNoKardex = ctx.noKardex ?? null;
+            if (!nuevoNoKardex || Number.isNaN(nuevoNoKardex)) {
+              throw new BadRequestException(
+                `El campo noKardex es obligatorio para reajustes de entrada que generan nuevo inventario (detalle #${index + 1})`,
+              );
+            }
             const createData = {
               renglon: ctx.renglon,
               codigoInsumo: ctx.codigoInsumo,
@@ -167,6 +174,7 @@ export class ReajustesService {
               precioTotal: new Prisma.Decimal(
                 detalleDto.cantidad * nuevoPrecioUnitario,
               ),
+              noKardex: nuevoNoKardex,
             };
 
             inventario = await tx.inventario.create({
@@ -494,6 +502,7 @@ export class ReajustesService {
                 fechaVencimiento: true,
                 precioUnitario: true,
                 precioTotal: true,
+                noKardex: true,
               },
             },
             CatalogoInsumos: {
@@ -661,6 +670,16 @@ export class ReajustesService {
       detalle.precioUnitario ??
       (inventario ? Number(inventario.precioUnitario) : 0);
 
+    const noKardexDetalle =
+      detalle.noKardex !== undefined && detalle.noKardex !== null
+        ? Number(detalle.noKardex)
+        : null;
+    const noKardex =
+      inventario?.noKardex ??
+      (noKardexDetalle !== null && !Number.isNaN(noKardexDetalle)
+        ? noKardexDetalle
+        : null);
+
     return {
       inventario,
       catalogo,
@@ -679,6 +698,7 @@ export class ReajustesService {
       idCatalogoInsumos:
         catalogo?.idCatalogoInsumos ?? detalle.idCatalogoInsumos ?? null,
       precioUnitario,
+      noKardex,
     };
   }
 

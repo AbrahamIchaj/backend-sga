@@ -138,6 +138,7 @@ export class ComprasService {
             data: {
               idIngresoCompras: ingreso.idIngresoCompras,
               idIngresoComprasLotes: loteCreado.idIngresoComprasLotes,
+              noKardex: dto.noKardex,
               renglon: detalle.renglon,
               codigoInsumo: detalle.codigoInsumo,
               nombreInsumo: detalle.nombreInsumo,

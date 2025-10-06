@@ -78,6 +78,7 @@ model Inventario {
   idInventario            Int                   @id @default(autoincrement())
   idIngresoCompras        Int?
   idIngresoComprasLotes   Int?
+  noKardex                Int                   @default(0)
   renglon                 Int
   codigoInsumo            Int
   nombreInsumo            String                @db.Text

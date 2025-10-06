@@ -78,6 +78,11 @@ export class CreateReajusteDetalleDto {
   @IsOptional()
   @IsString()
   observacionesDevolucion?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  noKardex?: number;
 }
 
 export class CreateReajusteDto {

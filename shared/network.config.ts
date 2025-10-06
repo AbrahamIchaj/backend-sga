@@ -1,6 +1,6 @@
 export const networkConfig = {
   protocol: 'http',
-  host: '192.168.1.40',
+  host: '192.88.1.122',
   backendPort: 3000,
   frontendPort: 4200,
 };
