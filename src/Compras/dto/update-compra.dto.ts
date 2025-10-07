@@ -4,6 +4,7 @@ import {
   IsNumber,
   Min,
   IsDateString,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -33,8 +34,11 @@ export class UpdateCompraDto {
   ordenCompra?: number;
 
   @IsOptional()
-  @IsNumber()
-  programa?: number;
+  @IsArray()
+  @Type(() => Number)
+  @IsNumber({}, { each: true })
+  @Min(1, { each: true })
+  programas?: number[];
 
   @IsOptional()
   @IsNumber()
@@ -91,6 +95,12 @@ export class ListComprasQueryDto {
   @IsNumber()
   @Min(1)
   limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  programa?: number;
 }
 
 export type CompraResumen = {
@@ -100,6 +110,7 @@ export type CompraResumen = {
   numeroFactura: number;
   serieFactura: string;
   tipoCompra: string;
+  programas: number[];
   noKardex: number;
   totalItems: number;
   totalCantidad: number;

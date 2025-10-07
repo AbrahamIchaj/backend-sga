@@ -5,8 +5,8 @@ import {
   IsDateString,
   IsArray,
   ValidateNested,
-  IsBoolean,
   Min,
+  ArrayNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -75,10 +75,11 @@ export class CreateCompraDetalleDto {
   @IsString()
   observaciones?: string;
 
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateCompraLoteDto)
-  lotes: CreateCompraLoteDto[];
+  lotes?: CreateCompraLoteDto[];
 }
 
 export class CreateCompraDto {
@@ -101,8 +102,12 @@ export class CreateCompraDto {
   @IsNumber()
   ordenCompra: number;
 
-  @IsNumber()
-  programa: number;
+  @IsArray()
+  @Type(() => Number)
+  @ArrayNotEmpty()
+  @IsNumber({}, { each: true })
+  @Min(1, { each: true })
+  programas: number[];
 
   @IsNumber()
   numero1h: number;

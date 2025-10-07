@@ -30,6 +30,15 @@ export class ComprasService {
       );
     }
 
+    dto.programas = Array.from(new Set(dto.programas)).filter(
+      (programa) => typeof programa === 'number' && programa > 0,
+    );
+    if (!dto.programas.length) {
+      throw new BadRequestException(
+        'Debes seleccionar al menos un programa para la compra',
+      );
+    }
+
     const renglonesPermitidos = await obtenerRenglonesPermitidos(
       this.prisma,
       idUsuario,
@@ -42,8 +51,17 @@ export class ComprasService {
     }
 
     dto.detalles.forEach((d, idx) => {
+      if (!Array.isArray(d.lotes) || d.lotes.length === 0) {
+        d.lotes = [
+          {
+            cantidad: d.cantidadTotal,
+            cartaCompromiso: 0,
+          },
+        ];
+      }
+
       const totalLotes =
-        d.lotes?.reduce((acc, l) => acc + (l.cantidad || 0), 0) || 0;
+        (d.lotes ?? []).reduce((acc, l) => acc + (l.cantidad || 0), 0) || 0;
       if (totalLotes !== d.cantidadTotal) {
         throw new BadRequestException(
           `La suma de lotes (${totalLotes}) no coincide con cantidadTotal (${d.cantidadTotal}) en detalle #${idx + 1}`,
@@ -62,10 +80,10 @@ export class ComprasService {
           fechaIngreso: new Date(dto.fechaIngreso),
           proveedor: dto.proveedor.trim(),
           ordenCompra: dto.ordenCompra,
-          programa: dto.programa,
+          programas: dto.programas,
           numero1h: dto.numero1h,
           noKardex: dto.noKardex,
-        },
+          },
       });
 
       let totalFactura = 0;
@@ -107,7 +125,17 @@ export class ComprasService {
           },
         });
 
-        for (const lote of det.lotes) {
+        const lotesARegistrar =
+          det.lotes && det.lotes.length
+            ? det.lotes
+            : [
+                {
+                  cantidad: det.cantidadTotal,
+                  cartaCompromiso: 0,
+                },
+              ];
+
+        for (const lote of lotesARegistrar) {
           const dataForLote: any = {
             idIngresoComprasDetalle: detalle.idIngresoComprasDetalle,
             cantidad: lote.cantidad,
@@ -264,10 +292,11 @@ export class ComprasService {
     proveedor?: string;
     desde?: string;
     hasta?: string;
+    programa?: number;
     page?: number;
     limit?: number;
   }) {
-    const { proveedor, desde, hasta, page = 1, limit = 20 } = params;
+    const { proveedor, desde, hasta, programa, page = 1, limit = 20 } = params;
     const where: Prisma.IngresoComprasWhereInput = {};
     if (proveedor)
       where.proveedor = { contains: proveedor, mode: 'insensitive' };
@@ -277,11 +306,13 @@ export class ComprasService {
         ...(hasta ? { lte: new Date(hasta) } : {}),
       } as any;
     }
+    if (programa) {
+      where.programas = { has: programa };
+    }
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.ingresoCompras.findMany({
         where,
-        // Cambiado para ordenar desde la primera compra (más antigua) hasta la última (más reciente)
         orderBy: { fechaIngreso: 'asc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -298,7 +329,7 @@ export class ComprasService {
       serieFactura: c.serieFactura,
       tipoCompra: c.tipoCompra,
       ordenCompra: c.ordenCompra,
-      programa: c.programa,
+      programas: c.programas ?? [],
       numero1h: c.numero1h,
       noKardex: c.noKardex,
       totalItems: c.IngresoComprasDetalle.length,
@@ -331,7 +362,7 @@ export class ComprasService {
         }),
         ...(dto.proveedor !== undefined && { proveedor: dto.proveedor }),
         ...(dto.ordenCompra !== undefined && { ordenCompra: dto.ordenCompra }),
-        ...(dto.programa !== undefined && { programa: dto.programa }),
+  ...(dto.programas !== undefined && { programas: dto.programas }),
         ...(dto.numero1h !== undefined && { numero1h: dto.numero1h }),
         ...(dto.noKardex !== undefined && { noKardex: dto.noKardex }),
       },

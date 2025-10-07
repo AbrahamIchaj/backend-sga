@@ -33,7 +33,7 @@ model IngresoCompras {
   fechaIngreso          DateTime                @db.Date
   proveedor             String                  @db.VarChar(250)
   ordenCompra           Int
-  programa              Int
+  programas             Int[]                  @default([])
   numero1h              Int
   noKardex              Int
   IngresoComprasDetalle IngresoComprasDetalle[]
