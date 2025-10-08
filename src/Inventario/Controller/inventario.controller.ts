@@ -284,14 +284,86 @@ export class InventarioController {
    * Obtener productos próximos a vencer
    */
   @Get('vencimientos/proximos')
-  async getProximosVencer(@Query('dias', ParseIntPipe) dias: number = 30) {
+  async getProximosVencer(
+    @Query('dias') dias?: string,
+    @Query('meses') meses?: string,
+  ) {
     try {
+      const diasNumero = dias !== undefined ? Number(dias) : undefined;
+      const mesesNumero = meses !== undefined ? Number(meses) : undefined;
+
+      const usarMeses =
+        mesesNumero !== undefined && !Number.isNaN(mesesNumero)
+          ? Math.max(1, mesesNumero)
+          : undefined;
+
+      if (diasNumero !== undefined && Number.isNaN(diasNumero)) {
+        throw new HttpException(
+          'El parámetro "dias" debe ser un número válido',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (meses !== undefined && usarMeses === undefined) {
+        throw new HttpException(
+          'El parámetro "meses" debe ser un número válido',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+  if (usarMeses === undefined && diasNumero === undefined) {
+        this.logger.log('Consultando productos próximos a vencer en los próximos 6 meses');
+
+        const rango = this.calcularRangoMeses(6);
+
+        const result = await this.inventarioService.findAll({
+          fechaVencimientoDesde: rango.desde,
+          fechaVencimientoHasta: rango.hasta,
+          limit: 100,
+        });
+
+        return {
+          success: true,
+          message:
+            'Productos próximos a vencer en los próximos 6 meses obtenidos exitosamente',
+          data: result.data,
+          total: result.data.length,
+          mesesConsultados: 6,
+          rangoConsulta: rango,
+        };
+      }
+
+      if (usarMeses) {
+        this.logger.log(
+          `Consultando productos próximos a vencer en los próximos ${usarMeses} meses`,
+        );
+
+        const rango = this.calcularRangoMeses(usarMeses);
+
+        const result = await this.inventarioService.findAll({
+          fechaVencimientoDesde: rango.desde,
+          fechaVencimientoHasta: rango.hasta,
+          limit: 100,
+        });
+
+        return {
+          success: true,
+          message: `Productos próximos a vencer en los próximos ${usarMeses} meses obtenidos exitosamente`,
+          data: result.data,
+          total: result.data.length,
+          mesesConsultados: usarMeses,
+          rangoConsulta: rango,
+        };
+      }
+
+      const diasConsulta = diasNumero ?? 30;
+
       this.logger.log(
-        `Consultando productos próximos a vencer en ${dias} días`,
+        `Consultando productos próximos a vencer en ${diasConsulta} días`,
       );
 
       const fechaLimite = new Date();
-      fechaLimite.setDate(fechaLimite.getDate() + dias);
+      fechaLimite.setDate(fechaLimite.getDate() + diasConsulta);
 
       const result = await this.inventarioService.findAll({
         fechaVencimientoDesde: new Date().toISOString(),
@@ -301,10 +373,10 @@ export class InventarioController {
 
       return {
         success: true,
-        message: `Productos próximos a vencer en ${dias} días obtenidos exitosamente`,
+        message: `Productos próximos a vencer en ${diasConsulta} días obtenidos exitosamente`,
         data: result.data,
         total: result.data.length,
-        diasConsultados: dias,
+        diasConsultados: diasConsulta,
       };
     } catch (error) {
       this.logger.error(
@@ -316,6 +388,22 @@ export class InventarioController {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  private calcularRangoMeses(meses: number): { desde: string; hasta: string } {
+    const inicio = new Date();
+    inicio.setDate(1);
+    inicio.setHours(0, 0, 0, 0);
+
+    const fin = new Date(inicio);
+    fin.setMonth(fin.getMonth() + meses);
+    fin.setDate(0); // último día del mes anterior al mes calculado
+    fin.setHours(23, 59, 59, 999);
+
+    return {
+      desde: inicio.toISOString(),
+      hasta: fin.toISOString(),
+    };
   }
 
   /**
