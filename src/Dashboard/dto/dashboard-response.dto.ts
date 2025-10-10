@@ -2,6 +2,7 @@ export interface DashboardMetrics {
   totalInsumos: number;
   totalExistencias: number;
   insumosProximosVencer: number;
+  insumosProximosVencerUnicos: number;
   insumosVencidos: number;
   stockBajo: number;
   valorInventario: number;
@@ -13,10 +14,9 @@ export interface DashboardMetrics {
   ultimaActualizacion: Date;
 }
 
-export interface SerieTemporal {
+export interface SerieDatos {
   labels: string[];
-  ingresos: number[];
-  despachos: number[];
+  data: number[];
 }
 
 export interface DistribucionInventario {
@@ -42,7 +42,8 @@ export interface DespachoResumen {
 export interface DashboardResumenResponse {
   metrics: DashboardMetrics;
   charts: {
-    ingresosVsDespachos: SerieTemporal;
+    despachosDiariosMes: SerieDatos;
+    ingresosDiariosMes: SerieDatos;
     estadoInventario: DistribucionInventario;
     comprasPorProveedor: TopProveedores;
   };
