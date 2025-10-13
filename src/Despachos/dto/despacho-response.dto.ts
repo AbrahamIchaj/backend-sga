@@ -21,6 +21,7 @@ export interface DespachoResponse {
   observaciones?: string | null;
   totalCantidad: number;
   totalGeneral: number;
+  renglones: number[];
   servicio?: {
     idServicio: number | null;
     nombre: string | null;
@@ -42,6 +43,7 @@ export interface DespachoListItem {
   totalCantidad: number;
   totalGeneral: number;
   totalItems: number;
+  renglones: number[];
 }
 
 export interface DisponibilidadProductoResponse {

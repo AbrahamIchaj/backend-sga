@@ -47,6 +47,11 @@ export class ListDespachosQueryDto {
   @IsOptional()
   @IsInt()
   @Type(() => Number)
+  idUsuarioCreador?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
   anio?: number;
 
   @IsOptional()
@@ -75,6 +80,17 @@ export class DisponibilidadDespachoQueryDto {
   @Type(() => Number)
   codigoPresentacion?: number;
 
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  idUsuario?: number;
+
+  @IsOptional()
+  @IsString()
+  renglones?: string;
+}
+
+export class DetalleDespachoQueryDto {
   @IsOptional()
   @IsInt()
   @Type(() => Number)

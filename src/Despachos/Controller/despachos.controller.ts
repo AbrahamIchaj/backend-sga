@@ -13,6 +13,7 @@ import {
 import { DespachosService } from '../Services/despachos.service';
 import { CreateDespachoDto } from '../dto/create-despacho.dto';
 import {
+  DetalleDespachoQueryDto,
   DisponibilidadDespachoQueryDto,
   ListDespachosQueryDto,
 } from '../dto/despacho-query.dto';
@@ -81,9 +82,12 @@ export class DespachosController {
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number) {
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: DetalleDespachoQueryDto,
+  ) {
     try {
-      const data = await this.despachosService.findOne(id);
+      const data = await this.despachosService.findOne(id, query);
       return { success: true, data };
     } catch (error) {
       this.logger.error(`Error al obtener despacho ${id}: ${error.message}`);

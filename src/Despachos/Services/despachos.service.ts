@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { CreateDespachoDto } from '../dto/create-despacho.dto';
 import {
+  DetalleDespachoQueryDto,
   DisponibilidadDespachoQueryDto,
   ListDespachosQueryDto,
 } from '../dto/despacho-query.dto';
@@ -30,7 +31,20 @@ type DespachoWithRelations = Prisma.DespachoGetPayload<{
         apellidos: true;
       };
     };
-    Detalles: true;
+    Detalles: {
+      include: {
+        Inventario: {
+          select: {
+            renglon: true;
+          };
+        };
+        CatalogoInsumos: {
+          select: {
+            renglon: true;
+          };
+        };
+      };
+    };
   };
 }>;
 
@@ -297,6 +311,18 @@ export class DespachosService {
           },
           Detalles: {
             orderBy: { idDespachoDetalle: 'asc' },
+            include: {
+              Inventario: {
+                select: {
+                  renglon: true,
+                },
+              },
+              CatalogoInsumos: {
+                select: {
+                  renglon: true,
+                },
+              },
+            },
           },
         },
       });
@@ -321,6 +347,7 @@ export class DespachosService {
       fechaHasta,
       idServicio,
       idUsuario,
+      idUsuarioCreador,
       anio,
       renglones,
       buscar,
@@ -332,8 +359,8 @@ export class DespachosService {
       where.codigoDespacho = { contains: codigo, mode: 'insensitive' };
     }
 
-    if (idServicio) where.idServicio = idServicio;
-    if (idUsuario) where.idUsuario = idUsuario;
+  if (idServicio) where.idServicio = idServicio;
+  if (idUsuarioCreador) where.idUsuario = idUsuarioCreador;
 
     const anioObjetivo =
       typeof anio === 'number' && Number.isFinite(anio)
@@ -412,6 +439,20 @@ export class DespachosService {
         include: {
           Servicios: { select: { nombre: true } },
           Usuarios: { select: { nombres: true, apellidos: true } },
+          Detalles: {
+            select: {
+              Inventario: {
+                select: {
+                  renglon: true,
+                },
+              },
+              CatalogoInsumos: {
+                select: {
+                  renglon: true,
+                },
+              },
+            },
+          },
           _count: { select: { Detalles: true } },
         },
         orderBy: { fechaDespacho: 'desc' },
@@ -419,18 +460,32 @@ export class DespachosService {
       this.prisma.despacho.count({ where }),
     ]);
 
-    const data: DespachoListItem[] = despachos.map((item) => ({
-      idDespacho: item.idDespacho,
-      codigoDespacho:
-        item.codigoDespacho ??
-        `DESP-${item.idDespacho.toString().padStart(6, '0')}`,
-      fechaDespacho: item.fechaDespacho,
-      servicio: item.Servicios?.nombre ?? null,
-      usuario: `${item.Usuarios.nombres} ${item.Usuarios.apellidos}`.trim(),
-      totalCantidad: item.totalCantidad,
-      totalGeneral: Number(item.totalGeneral),
-      totalItems: item._count.Detalles,
-    }));
+    const data: DespachoListItem[] = despachos.map((item) => {
+      const renglonesSet = new Set<number>();
+      for (const detalle of item.Detalles) {
+        const renglonDetalle =
+          detalle.Inventario?.renglon ?? detalle.CatalogoInsumos?.renglon;
+        if (typeof renglonDetalle === 'number' && Number.isFinite(renglonDetalle)) {
+          renglonesSet.add(renglonDetalle);
+        }
+      }
+
+      const renglones = Array.from(renglonesSet).sort((a, b) => a - b);
+
+      return {
+        idDespacho: item.idDespacho,
+        codigoDespacho:
+          item.codigoDespacho ??
+          `DESP-${item.idDespacho.toString().padStart(6, '0')}`,
+        fechaDespacho: item.fechaDespacho,
+        servicio: item.Servicios?.nombre ?? null,
+        usuario: `${item.Usuarios.nombres} ${item.Usuarios.apellidos}`.trim(),
+        totalCantidad: item.totalCantidad,
+        totalGeneral: Number(item.totalGeneral),
+        totalItems: item._count.Detalles,
+        renglones,
+      };
+    });
 
     return {
       data,
@@ -443,7 +498,10 @@ export class DespachosService {
     };
   }
 
-  async findOne(idDespacho: number): Promise<DespachoResponse> {
+  async findOne(
+    idDespacho: number,
+    query?: DetalleDespachoQueryDto,
+  ): Promise<DespachoResponse> {
     const despacho = await this.prisma.despacho.findUnique({
       where: { idDespacho },
       include: {
@@ -457,6 +515,18 @@ export class DespachosService {
         },
         Detalles: {
           orderBy: { idDespachoDetalle: 'asc' },
+          include: {
+            Inventario: {
+              select: {
+                renglon: true,
+              },
+            },
+            CatalogoInsumos: {
+              select: {
+                renglon: true,
+              },
+            },
+          },
         },
       },
     });
@@ -467,10 +537,70 @@ export class DespachosService {
       );
     }
 
+    if (query?.idUsuario || query?.renglones) {
+      const { idUsuario, renglones } = query;
+
+      let renglonesFiltrar: number[] = [];
+      if (typeof renglones === 'string' && renglones.trim()) {
+        renglonesFiltrar = renglones
+          .split(',')
+          .map((value) => Number(value.trim()))
+          .filter((value) => Number.isFinite(value) && value > 0);
+      }
+
+      if (!renglonesFiltrar.length && idUsuario) {
+        renglonesFiltrar = await obtenerRenglonesPermitidos(
+          this.prisma,
+          idUsuario,
+        );
+      }
+
+      if (idUsuario && renglonesFiltrar.length === 0) {
+        throw new NotFoundException(
+          `Despacho con ID ${idDespacho} no encontrado`,
+        );
+      }
+
+      if (renglonesFiltrar.length) {
+        const renglonesDespacho = new Set<number>();
+
+        for (const detalle of despacho.Detalles) {
+          const renglonDetalle =
+            detalle.Inventario?.renglon ?? detalle.CatalogoInsumos?.renglon;
+          if (typeof renglonDetalle === 'number' && renglonDetalle > 0) {
+            renglonesDespacho.add(renglonDetalle);
+          }
+        }
+
+        if (
+          renglonesDespacho.size > 0 &&
+          !Array.from(renglonesDespacho).every((renglon) =>
+            renglonesFiltrar.includes(renglon),
+          )
+        ) {
+          throw new NotFoundException(
+            `Despacho con ID ${idDespacho} no encontrado`,
+          );
+        }
+      }
+    }
+
     return this.mapDespacho(despacho as DespachoWithRelations);
   }
 
   private mapDespacho(despacho: DespachoWithRelations): DespachoResponse {
+    const renglonesSet = new Set<number>();
+
+    for (const detalle of despacho.Detalles) {
+      const renglonDetalle =
+        detalle.Inventario?.renglon ?? detalle.CatalogoInsumos?.renglon;
+      if (typeof renglonDetalle === 'number' && Number.isFinite(renglonDetalle)) {
+        renglonesSet.add(renglonDetalle);
+      }
+    }
+
+    const renglones = Array.from(renglonesSet).sort((a, b) => a - b);
+
     return {
       idDespacho: despacho.idDespacho,
       codigoDespacho:
@@ -480,6 +610,7 @@ export class DespachosService {
       observaciones: despacho.observaciones,
       totalCantidad: despacho.totalCantidad,
       totalGeneral: Number(despacho.totalGeneral),
+      renglones,
       servicio: despacho.Servicios
         ? {
             idServicio: despacho.Servicios.idServicio,
