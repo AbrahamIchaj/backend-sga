@@ -11,6 +11,7 @@ import { InventarioModule } from './Inventario/Module/inventario.module';
 import { ReajustesModule } from './Reajustes/Module/reajustes.module';
 import { DespachosModule } from './Despachos/Module/despachos.module';
 import { DashboardModule } from './Dashboard/Module/dashboard.module';
+import { ReportesModule } from './Reportes/Module/reportes.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { DashboardModule } from './Dashboard/Module/dashboard.module';
     ReajustesModule,
     DespachosModule,
     DashboardModule,
+    ReportesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
