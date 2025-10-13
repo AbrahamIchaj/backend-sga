@@ -292,22 +292,75 @@ export class ComprasService {
     proveedor?: string;
     desde?: string;
     hasta?: string;
+    fechaDesde?: string;
+    fechaHasta?: string;
     programa?: number;
     page?: number;
     limit?: number;
+    idUsuario?: number;
+    anio?: number;
+    renglones?: number[];
   }) {
-    const { proveedor, desde, hasta, programa, page = 1, limit = 20 } = params;
-    const where: Prisma.IngresoComprasWhereInput = {};
-    if (proveedor)
-      where.proveedor = { contains: proveedor, mode: 'insensitive' };
-    if (desde || hasta) {
-      where.fechaIngreso = {
-        ...(desde ? { gte: new Date(desde) } : {}),
-        ...(hasta ? { lte: new Date(hasta) } : {}),
-      } as any;
+    const {
+      proveedor,
+      desde,
+      hasta,
+      fechaDesde,
+      fechaHasta,
+      programa,
+      page = 1,
+      limit = 20,
+      idUsuario,
+      anio,
+      renglones = [],
+    } = params;
+
+    let renglonesFiltrar: number[] = Array.isArray(renglones)
+      ? renglones.filter((r) => Number.isFinite(r) && r > 0)
+      : [];
+
+    if ((!renglonesFiltrar.length) && idUsuario) {
+      renglonesFiltrar = await obtenerRenglonesPermitidos(this.prisma, idUsuario);
     }
+
+    if (renglonesFiltrar.length === 0 && idUsuario) {
+      // Si el usuario no tiene renglones asociados devolvemos lista vacía
+      return { data: [], total: 0, page, limit };
+    }
+
+    const where: Prisma.IngresoComprasWhereInput = {};
+
+    if (proveedor) {
+      where.proveedor = { contains: proveedor, mode: 'insensitive' };
+    }
+
+    const fechaInicioQuery = desde ?? fechaDesde ?? null;
+    const fechaFinQuery = hasta ?? fechaHasta ?? null;
+
+    const anioObjetivo = Number.isFinite(anio as number)
+      ? Number(anio)
+      : new Date().getFullYear();
+    const inicioAnio = new Date(anioObjetivo, 0, 1);
+    const finAnio = new Date(anioObjetivo, 11, 31, 23, 59, 59, 999);
+
+    if (fechaInicioQuery || fechaFinQuery) {
+      const inicio = fechaInicioQuery ? new Date(fechaInicioQuery) : inicioAnio;
+      const fin = fechaFinQuery ? new Date(fechaFinQuery) : finAnio;
+      where.fechaIngreso = { gte: inicio, lte: fin } as any;
+    } else {
+      where.fechaIngreso = { gte: inicioAnio, lte: finAnio } as any;
+    }
+
     if (programa) {
       where.programas = { has: programa };
+    }
+
+    if (renglonesFiltrar.length) {
+      where.IngresoComprasDetalle = {
+        some: {
+          renglon: { in: renglonesFiltrar },
+        },
+      };
     }
 
     const [data, total] = await this.prisma.$transaction([

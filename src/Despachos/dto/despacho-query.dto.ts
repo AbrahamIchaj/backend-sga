@@ -45,6 +45,15 @@ export class ListDespachosQueryDto {
   idUsuario?: number;
 
   @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  anio?: number;
+
+  @IsOptional()
+  @IsString()
+  renglones?: string;
+
+  @IsOptional()
   @IsString()
   @MaxLength(200)
   buscar?: string;
@@ -65,4 +74,13 @@ export class DisponibilidadDespachoQueryDto {
   @IsInt()
   @Type(() => Number)
   codigoPresentacion?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  idUsuario?: number;
+
+  @IsOptional()
+  @IsString()
+  renglones?: string;
 }

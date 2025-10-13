@@ -68,6 +68,15 @@ export class ListInventarioQueryDto {
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   stockBajo?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  idUsuario?: number;
+
+  @IsOptional()
+  @IsString()
+  renglones?: string;
 }
 
 export class InventarioExistenciasDto {
@@ -83,6 +92,15 @@ export class InventarioExistenciasDto {
   @IsInt()
   @Type(() => Number)
   codigoPresentacion?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  idUsuario?: number;
+
+  @IsOptional()
+  @IsString()
+  renglones?: string;
 }
 
 export class InventarioHistorialQueryDto {
@@ -132,6 +150,10 @@ export class InventarioHistorialQueryDto {
   @IsInt()
   @Type(() => Number)
   idUsuario?: number;
+
+  @IsOptional()
+  @IsString()
+  renglones?: string;
 }
 
 export class ReporteInventarioDto {

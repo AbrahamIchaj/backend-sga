@@ -415,6 +415,8 @@ export class ReajustesService {
       tipoReajuste,
       referencia,
       idUsuario,
+      anio,
+      renglones,
     } = query;
 
     const where: Prisma.ReajustesWhereInput = {};
@@ -423,10 +425,57 @@ export class ReajustesService {
     if (referencia)
       where.referenciaDocumento = { contains: referencia, mode: 'insensitive' };
     if (idUsuario) where.idUsuario = Number(idUsuario);
-    if (fechaDesde || fechaHasta) {
-      where.fechaReajuste = {};
-      if (fechaDesde) where.fechaReajuste.gte = new Date(fechaDesde as string);
-      if (fechaHasta) where.fechaReajuste.lte = new Date(fechaHasta as string);
+
+    const anioObjetivo =
+      typeof anio === 'number' && Number.isFinite(anio)
+        ? anio
+        : new Date().getFullYear();
+    const fechaInicioAnio = new Date(anioObjetivo, 0, 1);
+    const fechaFinAnio = new Date(anioObjetivo, 11, 31, 23, 59, 59, 999);
+
+    const fechaInicio = fechaDesde
+      ? new Date(fechaDesde as string)
+      : fechaInicioAnio;
+    const fechaFin = fechaHasta ? new Date(fechaHasta as string) : fechaFinAnio;
+
+    where.fechaReajuste = { gte: fechaInicio, lte: fechaFin };
+
+    let renglonesFiltrar: number[] = [];
+    if (typeof renglones === 'string' && renglones.trim()) {
+      renglonesFiltrar = renglones
+        .split(',')
+        .map((value) => Number(value.trim()))
+        .filter((value) => Number.isFinite(value) && value > 0);
+    }
+
+    if (!renglonesFiltrar.length && idUsuario) {
+      renglonesFiltrar = await obtenerRenglonesPermitidos(
+        this.prisma,
+        Number(idUsuario),
+      );
+    }
+
+    if (idUsuario && renglonesFiltrar.length === 0) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
+    if (renglonesFiltrar.length) {
+      where.ReajusteDetalle = {
+        some: {
+          OR: [
+            { Inventario: { renglon: { in: renglonesFiltrar } } },
+            { CatalogoInsumos: { renglon: { in: renglonesFiltrar } } },
+          ],
+        },
+      };
     }
 
     const skip = (page - 1) * limit;

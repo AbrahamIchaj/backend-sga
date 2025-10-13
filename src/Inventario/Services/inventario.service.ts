@@ -1,5 +1,6 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { obtenerRenglonesPermitidos } from '../../common/utils/renglones.util';
 import {
   ListInventarioQueryDto,
   InventarioExistenciasDto,
@@ -21,6 +22,49 @@ export class InventarioService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  private parseRenglonesInput(
+    input?: string | number[] | number,
+  ): number[] {
+    if (input === undefined || input === null) {
+      return [];
+    }
+
+    let values: number[] = [];
+
+    if (Array.isArray(input)) {
+      values = input
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value > 0);
+    } else if (typeof input === 'string') {
+      values = input
+        .split(',')
+        .map((value) => Number(value.trim()))
+        .filter((value) => Number.isFinite(value) && value > 0);
+    } else if (typeof input === 'number') {
+      if (Number.isFinite(input) && input > 0) {
+        values = [input];
+      }
+    }
+
+    return Array.from(new Set(values)).sort((a, b) => a - b);
+  }
+
+  private async resolveRenglonesFiltro(options: {
+    idUsuario?: number;
+    renglones?: string | number[] | number;
+  }): Promise<number[]> {
+    let renglonesFiltrar = this.parseRenglonesInput(options.renglones);
+
+    if ((!renglonesFiltrar || renglonesFiltrar.length === 0) && options.idUsuario) {
+      renglonesFiltrar = await obtenerRenglonesPermitidos(
+        this.prisma,
+        options.idUsuario,
+      );
+    }
+
+    return renglonesFiltrar ?? [];
+  }
+
   /**
    * Obtener lista paginada del inventario con filtros
    */
@@ -38,7 +82,32 @@ export class InventarioService {
         presentacion,
         proximosVencer,
         stockBajo,
+        idUsuario,
+        renglones,
       } = query as any;
+
+      const parsedIdUsuario =
+        idUsuario !== undefined && idUsuario !== null
+          ? Number(idUsuario)
+          : undefined;
+      const safeIdUsuario =
+        parsedIdUsuario !== undefined && Number.isFinite(parsedIdUsuario)
+          ? parsedIdUsuario
+          : undefined;
+
+      const renglonesFiltrar = await this.resolveRenglonesFiltro({
+        idUsuario: safeIdUsuario,
+        renglones,
+      });
+
+      if (safeIdUsuario && renglonesFiltrar.length === 0) {
+        return {
+          data: [],
+          meta: {
+            total: 0,
+          },
+        };
+      }
 
       // Normalizar filtros que pueden llegar como strings
       const parsedCodigoInsumo =
@@ -86,6 +155,10 @@ export class InventarioService {
         where.codigoPresentacion = parsedCodigoPresentacion;
       if (presentacion)
         where.presentacion = { contains: presentacion, mode: 'insensitive' };
+
+      if (renglonesFiltrar.length) {
+        where.renglon = { in: renglonesFiltrar };
+      }
 
       // Filtro de fechas de vencimiento
       if (fechaVencimientoDesde || fechaVencimientoHasta) {
@@ -254,7 +327,25 @@ export class InventarioService {
     dto: InventarioExistenciasDto,
   ): Promise<ExistenciasResponse[]> {
     try {
-      const { codigoInsumo, lote, codigoPresentacion } = dto;
+      const { codigoInsumo, lote, codigoPresentacion, idUsuario, renglones } = dto;
+
+      const parsedIdUsuario =
+        idUsuario !== undefined && idUsuario !== null
+          ? Number(idUsuario)
+          : undefined;
+      const safeIdUsuario =
+        parsedIdUsuario !== undefined && Number.isFinite(parsedIdUsuario)
+          ? parsedIdUsuario
+          : undefined;
+
+      const renglonesFiltrar = await this.resolveRenglonesFiltro({
+        idUsuario: safeIdUsuario,
+        renglones,
+      });
+
+      if (safeIdUsuario && renglonesFiltrar.length === 0) {
+        return [];
+      }
 
       const where: any = {
         cantidadDisponible: { gt: 0 },
@@ -263,6 +354,10 @@ export class InventarioService {
       if (codigoInsumo) where.codigoInsumo = codigoInsumo;
       if (lote) where.lote = { contains: lote, mode: 'insensitive' };
       if (codigoPresentacion) where.codigoPresentacion = codigoPresentacion;
+
+      if (renglonesFiltrar.length) {
+        where.renglon = { in: renglonesFiltrar };
+      }
 
       const inventario = await this.prisma.inventario.findMany({
         where,
@@ -339,6 +434,7 @@ export class InventarioService {
         fechaDesde,
         fechaHasta,
         idUsuario,
+        renglones,
       } = query;
 
       const where: any = {};
@@ -354,6 +450,57 @@ export class InventarioService {
         if (fechaHasta) where.fechaMovimiento.lte = new Date(fechaHasta);
       }
       if (idUsuario) where.idUsuario = Number(idUsuario);
+
+      const parsedIdUsuario =
+        idUsuario !== undefined && idUsuario !== null
+          ? Number(idUsuario)
+          : undefined;
+      const safeIdUsuario =
+        parsedIdUsuario !== undefined && Number.isFinite(parsedIdUsuario)
+          ? parsedIdUsuario
+          : undefined;
+
+      const renglonesFiltrar = await this.resolveRenglonesFiltro({
+        idUsuario: safeIdUsuario,
+        renglones,
+      });
+
+      if (safeIdUsuario && renglonesFiltrar.length === 0) {
+        return {
+          data: [],
+          meta: {
+            total: 0,
+            page,
+            limit,
+            totalPages: 0,
+          },
+        };
+      }
+
+      if (renglonesFiltrar.length) {
+        const filtrosRenglones = {
+          OR: [
+            {
+              Inventario: {
+                renglon: { in: renglonesFiltrar },
+              },
+            },
+            {
+              CatalogoInsumos: {
+                renglon: { in: renglonesFiltrar },
+              },
+            },
+          ],
+        };
+
+        if (Array.isArray(where.AND)) {
+          where.AND.push(filtrosRenglones);
+        } else if (where.AND) {
+          where.AND = [where.AND, filtrosRenglones];
+        } else {
+          where.AND = [filtrosRenglones];
+        }
+      }
 
       const skip = (page - 1) * limit;
 
@@ -472,8 +619,32 @@ export class InventarioService {
   /**
    * Obtener resumen general del inventario
    */
-  async getResumen(): Promise<ResumenInventarioResponse> {
+  async getResumen(options: {
+    idUsuario?: number;
+    renglones?: string | number[];
+  } = {}): Promise<ResumenInventarioResponse> {
     try {
+      const renglonesFiltrar = await this.resolveRenglonesFiltro(options);
+
+      if (options.idUsuario && renglonesFiltrar.length === 0) {
+        return {
+          totalItems: 0,
+          valorTotalInventario: 0,
+          itemsProximosVencer: 0,
+          itemsStockBajo: 0,
+          totalLotes: 0,
+          ultimaActualizacion: new Date(),
+        };
+      }
+
+      const baseWhere: any = {
+        cantidadDisponible: { gt: 0 },
+      };
+
+      if (renglonesFiltrar.length) {
+        baseWhere.renglon = { in: renglonesFiltrar };
+      }
+
       const [
         totalItems,
         valorTotal,
@@ -483,19 +654,19 @@ export class InventarioService {
       ] = await Promise.all([
         // Total de items en inventario con stock
         this.prisma.inventario.count({
-          where: { cantidadDisponible: { gt: 0 } },
+          where: baseWhere,
         }),
 
         // Valor total del inventario
         this.prisma.inventario.aggregate({
-          where: { cantidadDisponible: { gt: 0 } },
+          where: baseWhere,
           _sum: { precioTotal: true },
         }),
 
         // Items próximos a vencer (30 días)
         this.prisma.inventario.count({
           where: {
-            cantidadDisponible: { gt: 0 },
+            ...baseWhere,
             fechaVencimiento: {
               lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
               gte: new Date(),
@@ -507,13 +678,16 @@ export class InventarioService {
         this.prisma.inventario.count({
           where: {
             cantidadDisponible: { lt: 10, gt: 0 },
+            ...(renglonesFiltrar.length
+              ? { renglon: { in: renglonesFiltrar } }
+              : {}),
           },
         }),
 
         // Total de lotes únicos
         this.prisma.inventario.groupBy({
           by: ['lote'],
-          where: { cantidadDisponible: { gt: 0 } },
+          where: baseWhere,
         }),
       ]);
 
@@ -537,8 +711,25 @@ export class InventarioService {
   /**
    * Obtener alertas del inventario
    */
-  async getAlertas(): Promise<AlertasInventarioResponse> {
+  async getAlertas(options: {
+    idUsuario?: number;
+    renglones?: string | number[];
+  } = {}): Promise<AlertasInventarioResponse> {
     try {
+      const renglonesFiltrar = await this.resolveRenglonesFiltro(options);
+
+      if (options.idUsuario && renglonesFiltrar.length === 0) {
+        return {
+          productosVencidos: [],
+          productosProximosVencer: [],
+          productosStockBajo: [],
+        };
+      }
+
+      const filtroRenglon = renglonesFiltrar.length
+        ? { renglon: { in: renglonesFiltrar } }
+        : {};
+
       const hoy = new Date();
       const en30Dias = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
@@ -549,6 +740,7 @@ export class InventarioService {
             where: {
               cantidadDisponible: { gt: 0 },
               fechaVencimiento: { lt: hoy },
+              ...filtroRenglon,
             },
             select: {
               codigoInsumo: true,
@@ -568,6 +760,7 @@ export class InventarioService {
                 gte: hoy,
                 lte: en30Dias,
               },
+              ...filtroRenglon,
             },
             select: {
               codigoInsumo: true,
@@ -583,6 +776,7 @@ export class InventarioService {
           this.prisma.inventario.findMany({
             where: {
               cantidadDisponible: { lt: 10, gt: 0 },
+              ...filtroRenglon,
             },
             select: {
               codigoInsumo: true,
@@ -639,10 +833,37 @@ export class InventarioService {
    */
   async getMovimientosRecientes(
     limit: number = 10,
+    options: { idUsuario?: number; renglones?: string | number[] } = {},
   ): Promise<MovimientosRecientesResponse[]> {
     try {
+      const safeLimit = Number(limit) > 0 ? Number(limit) : 10;
+
+      const renglonesFiltrar = await this.resolveRenglonesFiltro(options);
+
+      if (options.idUsuario && renglonesFiltrar.length === 0) {
+        return [];
+      }
+
+      const filtrosRenglones = renglonesFiltrar.length
+        ? {
+            OR: [
+              {
+                Inventario: {
+                  renglon: { in: renglonesFiltrar },
+                },
+              },
+              {
+                CatalogoInsumos: {
+                  renglon: { in: renglonesFiltrar },
+                },
+              },
+            ],
+          }
+        : undefined;
+
       const movimientos = await this.prisma.historialInventario.findMany({
-        take: limit,
+        take: safeLimit,
+        where: filtrosRenglones,
         include: {
           CatalogoInsumos: {
             select: {

@@ -36,4 +36,12 @@ export class ListReajustesQueryDto {
   @IsOptional()
   @IsInt()
   idUsuario?: number;
+
+  @IsOptional()
+  @IsInt()
+  anio?: number;
+
+  @IsOptional()
+  @IsString()
+  renglones?: string;
 }

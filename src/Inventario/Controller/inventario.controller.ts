@@ -131,10 +131,21 @@ export class InventarioController {
    * Obtener resumen general del inventario
    */
   @Get('resumen/general')
-  async getResumen() {
+  async getResumen(
+    @Query('idUsuario') idUsuario?: string,
+    @Query('renglones') renglones?: string,
+  ) {
     try {
       this.logger.log('Consultando resumen general del inventario');
-      const data = await this.inventarioService.getResumen();
+
+      const parsedId = idUsuario ? Number(idUsuario) : undefined;
+      const safeId =
+        parsedId !== undefined && Number.isFinite(parsedId) ? parsedId : undefined;
+
+      const data = await this.inventarioService.getResumen({
+        idUsuario: safeId,
+        renglones,
+      });
       return {
         success: true,
         message: 'Resumen del inventario obtenido exitosamente',
@@ -155,10 +166,21 @@ export class InventarioController {
    * Obtener alertas del inventario (vencidos, próximos a vencer, stock bajo)
    */
   @Get('alertas/dashboard')
-  async getAlertas() {
+  async getAlertas(
+    @Query('idUsuario') idUsuario?: string,
+    @Query('renglones') renglones?: string,
+  ) {
     try {
       this.logger.log('Consultando alertas del inventario');
-      const data = await this.inventarioService.getAlertas();
+
+      const parsedId = idUsuario ? Number(idUsuario) : undefined;
+      const safeId =
+        parsedId !== undefined && Number.isFinite(parsedId) ? parsedId : undefined;
+
+      const data = await this.inventarioService.getAlertas({
+        idUsuario: safeId,
+        renglones,
+      });
       return {
         success: true,
         message: 'Alertas del inventario obtenidas exitosamente',
@@ -180,11 +202,24 @@ export class InventarioController {
    */
   @Get('movimientos/recientes')
   async getMovimientosRecientes(
-    @Query('limit', ParseIntPipe) limit: number = 10,
+    @Query('limit') limit?: string,
+    @Query('idUsuario') idUsuario?: string,
+    @Query('renglones') renglones?: string,
   ) {
     try {
-      this.logger.log(`Consultando ${limit} movimientos recientes`);
-      const data = await this.inventarioService.getMovimientosRecientes(limit);
+      const parsedLimit = limit !== undefined ? Number(limit) : 10;
+      const safeLimit =
+        Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
+
+      const parsedId = idUsuario ? Number(idUsuario) : undefined;
+      const safeId =
+        parsedId !== undefined && Number.isFinite(parsedId) ? parsedId : undefined;
+
+      this.logger.log(`Consultando ${safeLimit} movimientos recientes`);
+      const data = await this.inventarioService.getMovimientosRecientes(safeLimit, {
+        idUsuario: safeId,
+        renglones,
+      });
       return {
         success: true,
         message: 'Movimientos recientes obtenidos exitosamente',
@@ -210,11 +245,19 @@ export class InventarioController {
   @Get('productos/:codigoInsumo/existencias')
   async getExistenciasProducto(
     @Param('codigoInsumo', ParseIntPipe) codigoInsumo: number,
+    @Query('idUsuario') idUsuario?: string,
+    @Query('renglones') renglones?: string,
   ) {
     try {
       this.logger.log(`Consultando existencias del producto ${codigoInsumo}`);
+      const parsedId = idUsuario ? Number(idUsuario) : undefined;
+      const safeId =
+        parsedId !== undefined && Number.isFinite(parsedId) ? parsedId : undefined;
+
       const data = await this.inventarioService.getExistencias({
         codigoInsumo,
+        idUsuario: safeId,
+        renglones,
       });
 
       if (data.length === 0) {
@@ -246,12 +289,21 @@ export class InventarioController {
    * Obtener detalles específicos de un lote
    */
   @Get('lotes/:lote/detalles')
-  async getDetallesLote(@Param('lote') lote: string) {
+  async getDetallesLote(
+    @Param('lote') lote: string,
+    @Query('idUsuario') idUsuario?: string,
+    @Query('renglones') renglones?: string,
+  ) {
     try {
       this.logger.log(`Consultando detalles del lote: ${lote}`);
+      const parsedId = idUsuario ? Number(idUsuario) : undefined;
+      const safeId =
+        parsedId !== undefined && Number.isFinite(parsedId) ? parsedId : undefined;
       const result = await this.inventarioService.findAll({
         lote: lote,
         limit: 100, // Ajustar según necesidades
+        idUsuario: safeId,
+        renglones,
       });
 
       if (result.data.length === 0) {
@@ -287,6 +339,8 @@ export class InventarioController {
   async getProximosVencer(
     @Query('dias') dias?: string,
     @Query('meses') meses?: string,
+    @Query('idUsuario') idUsuario?: string,
+    @Query('renglones') renglones?: string,
   ) {
     try {
       const diasNumero = dias !== undefined ? Number(dias) : undefined;
@@ -296,6 +350,14 @@ export class InventarioController {
         mesesNumero !== undefined && !Number.isNaN(mesesNumero)
           ? Math.max(1, mesesNumero)
           : undefined;
+
+      const parsedId = idUsuario ? Number(idUsuario) : undefined;
+      const safeId =
+        parsedId !== undefined && Number.isFinite(parsedId) ? parsedId : undefined;
+
+      const filtrosBase: any = {};
+      if (safeId !== undefined) filtrosBase.idUsuario = safeId;
+      if (renglones) filtrosBase.renglones = renglones;
 
       if (diasNumero !== undefined && Number.isNaN(diasNumero)) {
         throw new HttpException(
@@ -320,6 +382,7 @@ export class InventarioController {
           fechaVencimientoDesde: rango.desde,
           fechaVencimientoHasta: rango.hasta,
           limit: 100,
+          ...filtrosBase,
         });
 
         return {
@@ -344,6 +407,7 @@ export class InventarioController {
           fechaVencimientoDesde: rango.desde,
           fechaVencimientoHasta: rango.hasta,
           limit: 100,
+          ...filtrosBase,
         });
 
         return {
@@ -369,6 +433,7 @@ export class InventarioController {
         fechaVencimientoDesde: new Date().toISOString(),
         fechaVencimientoHasta: fechaLimite.toISOString(),
         limit: 100,
+        ...filtrosBase,
       });
 
       return {
@@ -411,22 +476,39 @@ export class InventarioController {
    * Obtener productos con stock bajo
    */
   @Get('stock/bajo')
-  async getStockBajo(@Query('minimo', ParseIntPipe) minimo: number = 10) {
+  async getStockBajo(
+    @Query('minimo') minimo?: string,
+    @Query('idUsuario') idUsuario?: string,
+    @Query('renglones') renglones?: string,
+  ) {
     try {
-      this.logger.log(`Consultando productos con stock menor a ${minimo}`);
+      const parsedMinimo = minimo !== undefined ? Number(minimo) : 10;
+      const safeMinimo =
+        Number.isFinite(parsedMinimo) && parsedMinimo > 0 ? parsedMinimo : 10;
+
+      const parsedId = idUsuario ? Number(idUsuario) : undefined;
+      const safeId =
+        parsedId !== undefined && Number.isFinite(parsedId) ? parsedId : undefined;
+
+      const filtrosBase: any = {};
+      if (safeId !== undefined) filtrosBase.idUsuario = safeId;
+      if (renglones) filtrosBase.renglones = renglones;
+
+      this.logger.log(`Consultando productos con stock menor a ${safeMinimo}`);
 
       const result = await this.inventarioService.findAll({
         cantidadMinima: 1,
         stockBajo: true,
         limit: 100,
+        ...filtrosBase,
       });
 
       return {
         success: true,
-        message: `Productos con stock bajo (menor a ${minimo}) obtenidos exitosamente`,
+        message: `Productos con stock bajo (menor a ${safeMinimo}) obtenidos exitosamente`,
         data: result.data,
         total: result.data.length,
-        stockMinimo: minimo,
+        stockMinimo: safeMinimo,
       };
     } catch (error) {
       this.logger.error(

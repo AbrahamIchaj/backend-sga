@@ -18,6 +18,7 @@ import {
   DespachoResponse,
   DisponibilidadProductoResponse,
 } from '../dto/despacho-response.dto';
+import { obtenerRenglonesPermitidos } from '../../common/utils/renglones.util';
 
 type DespachoWithRelations = Prisma.DespachoGetPayload<{
   include: {
@@ -43,7 +44,13 @@ export class DespachosService {
     query: DisponibilidadDespachoQueryDto,
   ): Promise<DisponibilidadProductoResponse[]> {
     try {
-      const { codigoInsumo, lote, codigoPresentacion } = query;
+      const {
+        codigoInsumo,
+        lote,
+        codigoPresentacion,
+        idUsuario,
+        renglones,
+      } = query;
       const where: Prisma.InventarioWhereInput = {
         cantidadDisponible: { gt: 0 },
       };
@@ -55,6 +62,29 @@ export class DespachosService {
           mode: 'insensitive',
         };
       if (codigoPresentacion) where.codigoPresentacion = codigoPresentacion;
+
+      let renglonesFiltrar: number[] = [];
+      if (typeof renglones === 'string' && renglones.trim()) {
+        renglonesFiltrar = renglones
+          .split(',')
+          .map((value) => Number(value.trim()))
+          .filter((value) => Number.isFinite(value) && value > 0);
+      }
+
+      if (!renglonesFiltrar.length && idUsuario) {
+        renglonesFiltrar = await obtenerRenglonesPermitidos(
+          this.prisma,
+          idUsuario,
+        );
+      }
+
+      if (idUsuario && renglonesFiltrar.length === 0) {
+        return [];
+      }
+
+      if (renglonesFiltrar.length) {
+        where.renglon = { in: renglonesFiltrar };
+      }
 
       const inventario = await this.prisma.inventario.findMany({
         where,
@@ -291,6 +321,8 @@ export class DespachosService {
       fechaHasta,
       idServicio,
       idUsuario,
+      anio,
+      renglones,
       buscar,
     } = query;
 
@@ -303,10 +335,52 @@ export class DespachosService {
     if (idServicio) where.idServicio = idServicio;
     if (idUsuario) where.idUsuario = idUsuario;
 
-    if (fechaDesde || fechaHasta) {
-      where.fechaDespacho = {};
-      if (fechaDesde) where.fechaDespacho.gte = new Date(fechaDesde);
-      if (fechaHasta) where.fechaDespacho.lte = new Date(fechaHasta);
+    const anioObjetivo =
+      typeof anio === 'number' && Number.isFinite(anio)
+        ? anio
+        : new Date().getFullYear();
+    const fechaInicioAnio = new Date(anioObjetivo, 0, 1);
+    const fechaFinAnio = new Date(anioObjetivo, 11, 31, 23, 59, 59, 999);
+
+    const fechaInicio = fechaDesde ? new Date(fechaDesde) : fechaInicioAnio;
+    const fechaFin = fechaHasta ? new Date(fechaHasta) : fechaFinAnio;
+    where.fechaDespacho = { gte: fechaInicio, lte: fechaFin };
+
+    let renglonesFiltrar: number[] = [];
+    if (typeof renglones === 'string' && renglones.trim()) {
+      renglonesFiltrar = renglones
+        .split(',')
+        .map((value) => Number(value.trim()))
+        .filter((value) => Number.isFinite(value) && value > 0);
+    }
+
+    if (!renglonesFiltrar.length && idUsuario) {
+      renglonesFiltrar = await obtenerRenglonesPermitidos(
+        this.prisma,
+        idUsuario,
+      );
+    }
+
+    if (idUsuario && renglonesFiltrar.length === 0) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
+    if (renglonesFiltrar.length) {
+      where.Detalles = {
+        some: {
+          Inventario: {
+            renglon: { in: renglonesFiltrar },
+          },
+        },
+      };
     }
 
     if (buscar) {
