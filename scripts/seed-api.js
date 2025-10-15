@@ -70,6 +70,10 @@ async function main() {
       descripcion: 'Permite gestionar el inventario de productos.',
     },
     {
+      permiso: 'GESTIONAR_ABASTECIMIENTOS',
+      descripcion: 'Permite gestionar las proyecciones y snapshots de abastecimientos.',
+    },
+    {
       permiso: 'GESTIONAR_PERMISOS',
       descripcion: 'Permite gestionar los permisos.',
     },

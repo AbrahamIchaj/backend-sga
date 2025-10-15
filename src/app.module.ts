@@ -12,6 +12,7 @@ import { ReajustesModule } from './Reajustes/Module/reajustes.module';
 import { DespachosModule } from './Despachos/Module/despachos.module';
 import { DashboardModule } from './Dashboard/Module/dashboard.module';
 import { ReportesModule } from './Reportes/Module/reportes.module';
+import { AbastecimientosModule } from './Abastecimientos/Module/abastecimientos.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ReportesModule } from './Reportes/Module/reportes.module';
     DespachosModule,
     DashboardModule,
     ReportesModule,
+    AbastecimientosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -278,12 +278,22 @@ model UsuariosRenglones {
 
 model Abastecimientos {
   idAbastecimiento    Int     @id @default(autoincrement())
+  anio                Int
+  mes                 Int
   renglon             Int
   activo              Boolean @default(true)
   codigoInsumo        Int
   nombreInsumo        String  @db.VarChar(150)
   presentacion        String  @db.VarChar(100)
-  existencias         Int
-  promedioMensual     Int
-  mesesAbastecimiento Decimal @db.Decimal(3, 2)
+  unidadMedida        String? @db.VarChar(60)
+  caracteristicas     String? @db.VarChar(255)
+  existenciasBodega   Int
+  existenciasCocina   Int     @default(0)
+  promedioMensual     Decimal @db.Decimal(12, 2)
+  mesesAbastecimiento Decimal @db.Decimal(8, 2)
+  precioUnitario      Decimal? @db.Decimal(12, 4)
+  creadoEn            DateTime @default(now())
+  actualizadoEn       DateTime @updatedAt
+
+  @@unique([anio, mes, codigoInsumo])
 }

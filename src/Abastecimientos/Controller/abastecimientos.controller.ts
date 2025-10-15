@@ -1,0 +1,78 @@
+import {
+  Body,
+  Controller,
+  Get,
+  HttpException,
+  HttpStatus,
+  Logger,
+  Post,
+  Query,
+} from '@nestjs/common';
+import { AbastecimientosService } from '../Services/abastecimientos.service';
+import { ListarAbastecimientosQueryDto } from '../dto/listar-abastecimientos.dto';
+import { GuardarAbastecimientosDto } from '../dto/guardar-abastecimientos.dto';
+
+@Controller('abastecimientos')
+export class AbastecimientosController {
+  private readonly logger = new Logger(AbastecimientosController.name);
+
+  constructor(private readonly abastecimientosService: AbastecimientosService) {}
+
+  @Get()
+  async listar(@Query() query: ListarAbastecimientosQueryDto): Promise<any> {
+    try {
+      const ahora = new Date();
+      const anio = query.anio ?? ahora.getFullYear();
+      const mes = query.mes ?? ahora.getMonth() + 1;
+
+      this.logger.log(
+        `Consultando abastecimientos para ${anio}-${mes} con filtros ${JSON.stringify(query)}`,
+      );
+
+      const resultado = await this.abastecimientosService.listar({
+        ...query,
+        anio,
+        mes,
+      });
+
+      return {
+        success: true,
+        message: 'Abastecimientos obtenidos correctamente',
+        data: resultado,
+      };
+    } catch (error) {
+      this.logger.error(`Error al listar abastecimientos: ${error instanceof Error ? error.message : error}`);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Ocurrió un error al consultar los abastecimientos',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post()
+  async guardar(@Body() body: GuardarAbastecimientosDto): Promise<any> {
+    try {
+      this.logger.log(
+        `Guardando abastecimientos para ${body.anio}-${body.mes} (insumos: ${body.insumos?.length ?? 0})`,
+      );
+      const data = await this.abastecimientosService.guardar(body);
+      return {
+        success: true,
+        message: 'Abastecimientos guardados correctamente',
+        data,
+      };
+    } catch (error) {
+      this.logger.error(`Error al guardar abastecimientos: ${error instanceof Error ? error.message : error}`);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'No fue posible guardar los abastecimientos',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+}
