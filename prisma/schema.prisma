@@ -33,7 +33,7 @@ model IngresoCompras {
   fechaIngreso          DateTime                @db.Date
   proveedor             String                  @db.VarChar(250)
   ordenCompra           Int
-  programas             Int[]                  @default([])
+  programas             Int[]                   @default([])
   numero1h              Int
   noKardex              Int
   IngresoComprasDetalle IngresoComprasDetalle[]
@@ -277,23 +277,39 @@ model UsuariosRenglones {
 }
 
 model Abastecimientos {
-  idAbastecimiento    Int     @id @default(autoincrement())
+  idAbastecimiento    Int      @id @default(autoincrement())
   anio                Int
   mes                 Int
   renglon             Int
-  activo              Boolean @default(true)
+  activo              Boolean  @default(true)
   codigoInsumo        Int
-  nombreInsumo        String  @db.VarChar(150)
-  presentacion        String  @db.VarChar(100)
-  unidadMedida        String? @db.VarChar(60)
-  caracteristicas     String? @db.VarChar(255)
+  nombreInsumo        String   @db.VarChar(150)
+  presentacion        String   @db.VarChar(100)
+  unidadMedida        String?  @db.VarChar(60)
+  caracteristicas     String?  @db.VarChar(255)
   existenciasBodega   Int
-  existenciasCocina   Int     @default(0)
-  promedioMensual     Decimal @db.Decimal(12, 2)
-  mesesAbastecimiento Decimal @db.Decimal(8, 2)
+  existenciasCocina   Int      @default(0)
+  promedioMensual     Decimal  @db.Decimal(12, 2)
+  mesesAbastecimiento Decimal  @db.Decimal(8, 2)
   precioUnitario      Decimal? @db.Decimal(12, 4)
   creadoEn            DateTime @default(now())
   actualizadoEn       DateTime @updatedAt
 
   @@unique([anio, mes, codigoInsumo])
+}
+
+model AbastecimientosHistorial {
+  idRegistro    Int      @id @default(autoincrement())
+  anio          Int
+  mes           Int
+  fechaConsulta DateTime
+  idUsuario     Int?
+  resumen       Json
+  cobertura     Json
+  insumos       Json
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@index([fechaConsulta], map: "idx_abastecimientos_historial_fecha")
+  @@index([anio, mes], map: "idx_abastecimientos_historial_periodo")
 }

@@ -3,14 +3,93 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsISO8601,
   IsNotEmpty,
   IsOptional,
   IsPositive,
   IsString,
+  IsNumber,
   Min,
   Max,
   ValidateNested,
 } from 'class-validator';
+
+class GuardarAbastecimientosResumenDto {
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(0)
+  totalInsumos: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(0)
+  activos: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(0)
+  inactivos: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  existenciasBodegaActual: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  existenciasCocinaRegistrada: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  valorInventarioEstimado: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  promedioMesesCobertura: number;
+}
+
+class GuardarAbastecimientosCoberturaFilaDto {
+  @IsString()
+  @IsNotEmpty()
+  etiqueta: string;
+
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  cantidad: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  porcentaje: number;
+}
+
+class GuardarAbastecimientosCoberturaDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => GuardarAbastecimientosCoberturaFilaDto)
+  filas: GuardarAbastecimientosCoberturaFilaDto[];
+
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  totalCantidad: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  totalPorcentaje: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  disponibilidad: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  abastecimiento: number;
+}
 
 export class GuardarAbastecimientoItemDto {
   @Transform(({ value }) => Number(value))
@@ -128,6 +207,17 @@ export class GuardarAbastecimientosDto {
   })
   @IsArray()
   renglones?: number[];
+
+  @IsISO8601()
+  fechaConsulta: string;
+
+  @ValidateNested()
+  @Type(() => GuardarAbastecimientosResumenDto)
+  resumen: GuardarAbastecimientosResumenDto;
+
+  @ValidateNested()
+  @Type(() => GuardarAbastecimientosCoberturaDto)
+  cobertura: GuardarAbastecimientosCoberturaDto;
 
   @IsArray()
   @ValidateNested({ each: true })

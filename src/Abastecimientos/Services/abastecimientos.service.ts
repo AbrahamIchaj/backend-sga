@@ -11,6 +11,7 @@ import { ReporteFiltroQueryDto } from '../../Reportes/dto/reportes-query.dto';
 import { obtenerRenglonesPermitidos } from '../../common/utils/renglones.util';
 import { ListarAbastecimientosQueryDto } from '../dto/listar-abastecimientos.dto';
 import { GuardarAbastecimientosDto } from '../dto/guardar-abastecimientos.dto';
+import { ListarHistorialAbastecimientosQueryDto } from '../dto/listar-historial-abastecimientos.dto';
 
 interface InventarioAggregado {
   codigoInsumo: number;
@@ -155,6 +156,50 @@ export class AbastecimientosService {
       fechaInicio,
       fechaFin,
     };
+  }
+
+  private parseFechaISO(value: string, campo: string, mode: 'exact' | 'start' | 'end' = 'exact'): Date {
+    if (!value) {
+      throw new HttpException(`El campo ${campo} es obligatorio`, HttpStatus.BAD_REQUEST);
+    }
+
+    const soloFecha = /^\d{4}-\d{2}-\d{2}$/;
+    if (soloFecha.test(value)) {
+      const [anioStr, mesStr, diaStr] = value.split('-');
+      const anio = Number(anioStr);
+      const mes = Number(mesStr);
+      const dia = Number(diaStr);
+
+      if (!Number.isFinite(anio) || !Number.isFinite(mes) || !Number.isFinite(dia)) {
+        throw new HttpException(`Fecha inválida para ${campo}`, HttpStatus.BAD_REQUEST);
+      }
+
+      const baseHour = mode === 'exact' ? 12 : mode === 'start' ? 0 : 23;
+      const baseMinute = mode === 'end' ? 59 : 0;
+      const baseSecond = mode === 'end' ? 59 : 0;
+      const baseMs = mode === 'end' ? 999 : 0;
+
+      return new Date(Date.UTC(anio, mes - 1, dia, baseHour, baseMinute, baseSecond, baseMs));
+    }
+
+    const fecha = new Date(value);
+    if (Number.isNaN(fecha.getTime())) {
+      throw new HttpException(`Fecha inválida para ${campo}`, HttpStatus.BAD_REQUEST);
+    }
+
+    if (mode === 'start') {
+      const copia = new Date(fecha);
+      copia.setUTCHours(0, 0, 0, 0);
+      return copia;
+    }
+
+    if (mode === 'end') {
+      const copia = new Date(fecha);
+      copia.setUTCHours(23, 59, 59, 999);
+      return copia;
+    }
+
+    return fecha;
   }
 
   private agregarInventario(
@@ -347,6 +392,75 @@ export class AbastecimientosService {
     }
     const resultado = existencias / promedio;
     return Number.isFinite(resultado) ? Number(resultado.toFixed(2)) : 0;
+  }
+
+  async listarHistorial(query: ListarHistorialAbastecimientosQueryDto) {
+    try {
+  const where: Prisma.AbastecimientosHistorialWhereInput = {};
+
+      if (query.anio) {
+        where.anio = query.anio;
+      }
+
+      if (query.mes) {
+        where.mes = query.mes;
+      }
+
+      let fechaInicio: Date | undefined;
+      let fechaFin: Date | undefined;
+
+      if (query.fechaDesde) {
+        fechaInicio = this.parseFechaISO(query.fechaDesde, 'fechaDesde', 'start');
+      }
+
+      if (query.fechaHasta) {
+        fechaFin = this.parseFechaISO(query.fechaHasta, 'fechaHasta', 'end');
+      }
+
+      if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
+        throw new HttpException(
+          'La fecha de inicio no puede ser posterior a la fecha fin',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (fechaInicio || fechaFin) {
+        where.fechaConsulta = {};
+        if (fechaInicio) {
+          where.fechaConsulta.gte = fechaInicio;
+        }
+        if (fechaFin) {
+          where.fechaConsulta.lte = fechaFin;
+        }
+      }
+
+      const registros = await this.prisma.abastecimientosHistorial.findMany({
+        where,
+        orderBy: { fechaConsulta: 'desc' },
+        take: 250,
+      });
+
+      return registros.map((registro) => ({
+        idRegistro: registro.idRegistro,
+        anio: registro.anio,
+        mes: registro.mes,
+        fechaConsulta: registro.fechaConsulta.toISOString(),
+        resumen: registro.resumen as Record<string, any>,
+        cobertura: registro.cobertura as Record<string, any>,
+        insumos: registro.insumos as Array<Record<string, any>>,
+        creadoEn: registro.creadoEn.toISOString(),
+        actualizadoEn: registro.actualizadoEn.toISOString(),
+      }));
+    } catch (error) {
+      this.logger.error(`Error al consultar historial de abastecimientos: ${error instanceof Error ? error.message : error}`);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Ocurrió un error al consultar el historial de abastecimientos',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   async listar(query: ListarAbastecimientosQueryDto) {
@@ -561,6 +675,30 @@ export class AbastecimientosService {
       throw new HttpException('Debe proporcionar al menos un insumo para guardar', HttpStatus.BAD_REQUEST);
     }
 
+    const fechaConsulta = this.parseFechaISO(dto.fechaConsulta, 'fechaConsulta');
+
+    const resumenPayload: Prisma.InputJsonValue = {
+      totalInsumos: Math.max(0, Math.trunc(dto.resumen.totalInsumos ?? 0)),
+      activos: Math.max(0, Math.trunc(dto.resumen.activos ?? 0)),
+      inactivos: Math.max(0, Math.trunc(dto.resumen.inactivos ?? 0)),
+      existenciasBodegaActual: Number(Number(dto.resumen.existenciasBodegaActual ?? 0).toFixed(2)),
+      existenciasCocinaRegistrada: Number(Number(dto.resumen.existenciasCocinaRegistrada ?? 0).toFixed(2)),
+      valorInventarioEstimado: Number(Number(dto.resumen.valorInventarioEstimado ?? 0).toFixed(2)),
+      promedioMesesCobertura: Number(Number(dto.resumen.promedioMesesCobertura ?? 0).toFixed(2)),
+    };
+
+    const coberturaPayload: Prisma.InputJsonValue = {
+      filas: (dto.cobertura.filas ?? []).map((fila) => ({
+        etiqueta: fila.etiqueta,
+        cantidad: Number(Number(fila.cantidad ?? 0).toFixed(2)),
+        porcentaje: Number(Number(fila.porcentaje ?? 0).toFixed(2)),
+      })),
+      totalCantidad: Number(Number(dto.cobertura.totalCantidad ?? 0).toFixed(2)),
+      totalPorcentaje: Number(Number(dto.cobertura.totalPorcentaje ?? 0).toFixed(2)),
+      disponibilidad: Number(Number(dto.cobertura.disponibilidad ?? 0).toFixed(2)),
+      abastecimiento: Number(Number(dto.cobertura.abastecimiento ?? 0).toFixed(2)),
+    };
+
     const { renglones, sinPermisos } = await this.resolveRenglonesFiltro({
       idUsuario: dto.idUsuario,
       renglones: dto.renglones,
@@ -574,6 +712,7 @@ export class AbastecimientosService {
     }
 
     const codigosProcesados = new Set<number>();
+  const historialInsumos: Array<Record<string, unknown>> = [];
 
     try {
       await this.prisma.$transaction(async (tx) => {
@@ -612,15 +751,29 @@ export class AbastecimientosService {
           const existenciasCocina = Math.max(0, Math.trunc(Number(insumo.existenciasCocina ?? 0)));
           const existenciasTotales = existenciasBodega + existenciasCocina;
           const promedioMensual = Number.isFinite(insumo.promedioMensual)
-            ? Math.max(0, Number(insumo.promedioMensual))
+            ? Math.max(0, Number(Number(insumo.promedioMensual).toFixed(4)))
             : 0;
           const precioUnitario = Number.isFinite(insumo.precioUnitario)
-            ? Number(insumo.precioUnitario)
+            ? Number(Number(insumo.precioUnitario).toFixed(4))
             : null;
           const mesesAbastecimiento = this.calcularMesesAbastecimiento(
             existenciasTotales,
             promedioMensual,
           );
+
+          historialInsumos.push({
+            codigoInsumo: codigo,
+            renglon,
+            existenciasBodega,
+            existenciasCocina,
+            promedioMensual,
+            precioUnitario,
+            nombreInsumo: insumo.nombreInsumo ?? '',
+            presentacion: insumo.presentacion ?? null,
+            unidadMedida: insumo.unidadMedida ?? null,
+            caracteristicas: insumo.caracteristicas ?? null,
+            activo: Boolean(insumo.activo),
+          });
 
           await tx.abastecimientos.upsert({
             where: {
@@ -638,12 +791,8 @@ export class AbastecimientosService {
               caracteristicas: insumo.caracteristicas ?? null,
               existenciasBodega,
               existenciasCocina,
-              promedioMensual: new Prisma.Decimal(
-                promedioMensual.toFixed(4),
-              ),
-              mesesAbastecimiento: new Prisma.Decimal(
-                mesesAbastecimiento.toFixed(4),
-              ),
+              promedioMensual: new Prisma.Decimal(promedioMensual.toFixed(4)),
+              mesesAbastecimiento: new Prisma.Decimal(mesesAbastecimiento.toFixed(4)),
               precioUnitario: precioUnitario !== null
                 ? new Prisma.Decimal(precioUnitario.toFixed(4))
                 : null,
@@ -660,12 +809,8 @@ export class AbastecimientosService {
               caracteristicas: insumo.caracteristicas ?? null,
               existenciasBodega,
               existenciasCocina,
-              promedioMensual: new Prisma.Decimal(
-                promedioMensual.toFixed(4),
-              ),
-              mesesAbastecimiento: new Prisma.Decimal(
-                mesesAbastecimiento.toFixed(4),
-              ),
+              promedioMensual: new Prisma.Decimal(promedioMensual.toFixed(4)),
+              mesesAbastecimiento: new Prisma.Decimal(mesesAbastecimiento.toFixed(4)),
               precioUnitario: precioUnitario !== null
                 ? new Prisma.Decimal(precioUnitario.toFixed(4))
                 : null,
@@ -675,6 +820,25 @@ export class AbastecimientosService {
 
           codigosProcesados.add(codigo);
         }
+
+        if (!historialInsumos.length) {
+          throw new HttpException(
+            'No se pudo registrar el historial porque no hubo insumos válidos',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+
+        await tx.abastecimientosHistorial.create({
+          data: {
+            anio: dto.anio,
+            mes: dto.mes,
+            fechaConsulta,
+            idUsuario: dto.idUsuario ?? null,
+            resumen: resumenPayload,
+            cobertura: coberturaPayload,
+            insumos: historialInsumos as unknown as Prisma.InputJsonValue,
+          },
+        });
       });
 
       const registros = await this.prisma.abastecimientos.findMany({
