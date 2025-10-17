@@ -440,17 +440,25 @@ export class AbastecimientosService {
         take: 250,
       });
 
-      return registros.map((registro) => ({
+      return registros.map((registro) => {
+        const resumen = this.normalizeJson<Record<string, unknown>>(registro.resumen);
+        const cobertura = this.normalizeJson<Record<string, unknown>>(registro.cobertura);
+        const insumos = this.normalizeJson<Array<Record<string, unknown>>>(registro.insumos);
+
+        return {
         idRegistro: registro.idRegistro,
         anio: registro.anio,
         mes: registro.mes,
         fechaConsulta: registro.fechaConsulta.toISOString(),
-        resumen: registro.resumen as Record<string, any>,
-        cobertura: registro.cobertura as Record<string, any>,
-        insumos: registro.insumos as Array<Record<string, any>>,
+        resumen,
+        cobertura,
+        insumos,
         creadoEn: registro.creadoEn.toISOString(),
-        actualizadoEn: registro.actualizadoEn.toISOString(),
-      }));
+        actualizadoEn: registro.actualizadoEn
+          ? registro.actualizadoEn.toISOString()
+          : null,
+      };
+      });
     } catch (error) {
       this.logger.error(`Error al consultar historial de abastecimientos: ${error instanceof Error ? error.message : error}`);
       if (error instanceof HttpException) {
@@ -750,16 +758,35 @@ export class AbastecimientosService {
             : 0;
           const existenciasCocina = Math.max(0, Math.trunc(Number(insumo.existenciasCocina ?? 0)));
           const existenciasTotales = existenciasBodega + existenciasCocina;
+
           const promedioMensual = Number.isFinite(insumo.promedioMensual)
             ? Math.max(0, Number(Number(insumo.promedioMensual).toFixed(4)))
             : 0;
           const precioUnitario = Number.isFinite(insumo.precioUnitario)
             ? Number(Number(insumo.precioUnitario).toFixed(4))
             : null;
-          const mesesAbastecimiento = this.calcularMesesAbastecimiento(
-            existenciasTotales,
-            promedioMensual,
-          );
+
+          const totalUnidadesRaw = Number(insumo.totalUnidades);
+          const totalUnidades = Number.isFinite(totalUnidadesRaw)
+            ? Math.max(0, Number(totalUnidadesRaw.toFixed(4)))
+            : existenciasTotales;
+
+          const consumoMensualRaw = Number(insumo.consumoMensual);
+          const consumoMensual = Number.isFinite(consumoMensualRaw)
+            ? Math.max(0, Number(consumoMensualRaw.toFixed(4)))
+            : promedioMensual;
+
+          const mesesCoberturaRaw = Number(insumo.mesesCobertura);
+          const mesesAbastecimiento = Number.isFinite(mesesCoberturaRaw)
+            ? Math.max(0, Number(mesesCoberturaRaw.toFixed(4)))
+            : this.calcularMesesAbastecimiento(totalUnidades, consumoMensual || promedioMensual);
+
+          const valorEstimadoRaw = Number(insumo.valorEstimado);
+          const valorEstimado = Number.isFinite(valorEstimadoRaw)
+            ? Math.max(0, Number(valorEstimadoRaw.toFixed(2)))
+            : (precioUnitario !== null
+                ? Number((totalUnidades * precioUnitario).toFixed(2))
+                : null);
 
           historialInsumos.push({
             codigoInsumo: codigo,
@@ -773,6 +800,10 @@ export class AbastecimientosService {
             unidadMedida: insumo.unidadMedida ?? null,
             caracteristicas: insumo.caracteristicas ?? null,
             activo: Boolean(insumo.activo),
+            totalUnidades,
+            consumoMensual,
+            mesesCobertura: mesesAbastecimiento,
+            valorEstimado,
           });
 
           await tx.abastecimientos.upsert({
@@ -880,5 +911,47 @@ export class AbastecimientosService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  private normalizeJson<T = any>(valor: Prisma.JsonValue | null | undefined): T {
+    if (valor === null || valor === undefined) {
+      return valor as unknown as T;
+    }
+    return this.normalizeJsonValue(valor) as T;
+  }
+
+  private normalizeJsonValue(valor: Prisma.JsonValue): unknown {
+    if (this.esDecimal(valor)) {
+      return valor.toNumber();
+    }
+
+    if (Array.isArray(valor)) {
+      return valor.map((item) => this.normalizeJsonValue(item));
+    }
+
+    if (valor !== null && typeof valor === 'object') {
+      const resultado: Record<string, unknown> = {};
+      const entries = Object.entries(valor as Prisma.JsonObject);
+      for (const [clave, item] of entries) {
+        resultado[clave] = this.normalizeJsonValue(item as Prisma.JsonValue);
+      }
+      return resultado;
+    }
+
+    if (typeof valor === 'string') {
+      const texto = valor.trim();
+      if (texto && /^-?\d+(?:\.\d+)?$/.test(texto)) {
+        const numero = Number(texto);
+        if (!Number.isNaN(numero)) {
+          return numero;
+        }
+      }
+    }
+
+    return valor;
+  }
+
+  private esDecimal(valor: unknown): valor is Prisma.Decimal {
+    return valor instanceof Prisma.Decimal;
   }
 }

@@ -156,6 +156,54 @@ export class GuardarAbastecimientoItemDto {
 
   @IsBoolean()
   activo: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
+    const numero = Number(value);
+    return Number.isFinite(numero) ? numero : undefined;
+  })
+  @IsNumber()
+  @Min(0)
+  totalUnidades?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
+    const numero = Number(value);
+    return Number.isFinite(numero) ? numero : undefined;
+  })
+  @IsNumber()
+  @Min(0)
+  consumoMensual?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
+    const numero = Number(value);
+    return Number.isFinite(numero) ? numero : undefined;
+  })
+  @IsNumber()
+  @Min(0)
+  mesesCobertura?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
+    const numero = Number(value);
+    return Number.isFinite(numero) ? numero : undefined;
+  })
+  @IsNumber()
+  @Min(0)
+  valorEstimado?: number;
 }
 
 export class GuardarAbastecimientosDto {
