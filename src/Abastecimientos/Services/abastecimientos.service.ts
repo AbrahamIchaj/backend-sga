@@ -396,7 +396,16 @@ export class AbastecimientosService {
 
   async listarHistorial(query: ListarHistorialAbastecimientosQueryDto) {
     try {
-  const where: Prisma.AbastecimientosHistorialWhereInput = {};
+      const where: Prisma.AbastecimientosHistorialWhereInput = {};
+
+      const { renglones, sinPermisos } = await this.resolveRenglonesFiltro({
+        idUsuario: query.idUsuario,
+        renglones: query.renglones,
+      });
+
+      if (sinPermisos) {
+        return [];
+      }
 
       if (query.anio) {
         where.anio = query.anio;
@@ -443,21 +452,28 @@ export class AbastecimientosService {
       return registros.map((registro) => {
         const resumen = this.normalizeJson<Record<string, unknown>>(registro.resumen);
         const cobertura = this.normalizeJson<Record<string, unknown>>(registro.cobertura);
-        const insumos = this.normalizeJson<Array<Record<string, unknown>>>(registro.insumos);
+        const insumosRaw = this.normalizeJson<Array<Record<string, unknown>>>(registro.insumos) ?? [];
+        const insumos = renglones.length
+          ? insumosRaw.filter((insumo) => {
+              const renglonValor = (insumo as Record<string, unknown>)['renglon'];
+              const renglon = Number(renglonValor ?? 0);
+              return Number.isFinite(renglon) && renglones.includes(renglon);
+            })
+          : insumosRaw;
 
         return {
-        idRegistro: registro.idRegistro,
-        anio: registro.anio,
-        mes: registro.mes,
-        fechaConsulta: registro.fechaConsulta.toISOString(),
-        resumen,
-        cobertura,
-        insumos,
-        creadoEn: registro.creadoEn.toISOString(),
-        actualizadoEn: registro.actualizadoEn
-          ? registro.actualizadoEn.toISOString()
-          : null,
-      };
+          idRegistro: registro.idRegistro,
+          anio: registro.anio,
+          mes: registro.mes,
+          fechaConsulta: registro.fechaConsulta.toISOString(),
+          resumen,
+          cobertura,
+          insumos,
+          creadoEn: registro.creadoEn.toISOString(),
+          actualizadoEn: registro.actualizadoEn
+            ? registro.actualizadoEn.toISOString()
+            : null,
+        };
       });
     } catch (error) {
       this.logger.error(`Error al consultar historial de abastecimientos: ${error instanceof Error ? error.message : error}`);
