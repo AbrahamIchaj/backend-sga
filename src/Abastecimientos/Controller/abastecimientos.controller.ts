@@ -5,6 +5,7 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { AbastecimientosService } from '../Services/abastecimientos.service';
 import { ListarAbastecimientosQueryDto } from '../dto/listar-abastecimientos.dto';
 import { GuardarAbastecimientosDto } from '../dto/guardar-abastecimientos.dto';
 import { ListarHistorialAbastecimientosQueryDto } from '../dto/listar-historial-abastecimientos.dto';
+import { ActualizarEstadoAbastecimientoDto } from '../dto/actualizar-estado-abastecimiento.dto';
 
 @Controller('abastecimientos')
 export class AbastecimientosController {
@@ -96,6 +98,32 @@ export class AbastecimientosController {
       }
       throw new HttpException(
         'No fue posible guardar los abastecimientos',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Patch('estado')
+  async actualizarEstado(
+    @Body() body: ActualizarEstadoAbastecimientoDto,
+  ): Promise<any> {
+    try {
+      this.logger.log(
+        `Actualizando estado activo para insumo ${body.codigoInsumo} en ${body.anio}-${body.mes} a ${body.activo}`,
+      );
+      const data = await this.abastecimientosService.actualizarEstadoAbastecimiento(body);
+      return {
+        success: true,
+        message: 'Estado del insumo actualizado correctamente',
+        data,
+      };
+    } catch (error) {
+      this.logger.error(`Error al actualizar estado de abastecimiento: ${error instanceof Error ? error.message : error}`);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'No fue posible actualizar el estado del insumo',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

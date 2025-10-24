@@ -313,3 +313,52 @@ model AbastecimientosHistorial {
   @@index([fechaConsulta], map: "idx_abastecimientos_historial_fecha")
   @@index([anio, mes], map: "idx_abastecimientos_historial_periodo")
 }
+
+model AbastecimientosEstado {
+  anio          Int
+  mes           Int
+  codigoInsumo  Int
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@id([anio, mes, codigoInsumo])
+  @@index([codigoInsumo], map: "idx_abastecimientos_estado_codigo")
+}
+
+model AbastecimientosGeneral {
+  idGeneral            Int      @id @default(autoincrement())
+  anio                 Int
+  mes                  Int
+  renglon              Int
+  activo               Boolean  @default(true)
+  codigoInsumo         Int
+  nombreInsumo         String   @db.VarChar(150)
+  presentacion         String   @db.VarChar(100)
+  unidadMedida         String?  @db.VarChar(60)
+  caracteristicas      String?  @db.VarChar(255)
+  existenciasBodega    Int
+  promedioMensual      Decimal  @db.Decimal(12, 2)
+  mesesAbastecimiento  Decimal  @db.Decimal(8, 2)
+  precioUnitario       Decimal? @db.Decimal(12, 4)
+  creadoEn             DateTime @default(now())
+  actualizadoEn        DateTime @updatedAt
+
+  @@unique([anio, mes, codigoInsumo], map: "uq_abastecimientos_general_periodo_codigo")
+}
+
+model AbastecimientosGeneralHistorial {
+  idRegistro    Int      @id @default(autoincrement())
+  anio          Int
+  mes           Int
+  fechaConsulta DateTime
+  idUsuario     Int?
+  resumen       Json
+  cobertura     Json
+  insumos       Json
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@index([fechaConsulta], map: "idx_abastecimientos_general_historial_fecha")
+  @@index([anio, mes], map: "idx_abastecimientos_general_historial_periodo")
+}

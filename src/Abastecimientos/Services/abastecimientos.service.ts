@@ -4,7 +4,7 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { Prisma, Abastecimientos } from '@prisma/client';
+import { Prisma, Abastecimientos, AbastecimientosGeneral } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ReportesService, ConsumoMensualDetalleResponse } from '../../Reportes/Services/reportes.service';
 import { ReporteFiltroQueryDto } from '../../Reportes/dto/reportes-query.dto';
@@ -12,6 +12,8 @@ import { obtenerRenglonesPermitidos } from '../../common/utils/renglones.util';
 import { ListarAbastecimientosQueryDto } from '../dto/listar-abastecimientos.dto';
 import { GuardarAbastecimientosDto } from '../dto/guardar-abastecimientos.dto';
 import { ListarHistorialAbastecimientosQueryDto } from '../dto/listar-historial-abastecimientos.dto';
+import { ActualizarEstadoAbastecimientoDto } from '../dto/actualizar-estado-abastecimiento.dto';
+import { GuardarAbastecimientosGeneralDto } from '../dto/guardar-abastecimientos-general.dto';
 
 interface InventarioAggregado {
   codigoInsumo: number;
@@ -61,6 +63,23 @@ interface SnapshotRecord {
   caracteristicas?: string | null;
   existenciasBodega: number;
   existenciasCocina: number;
+  promedioMensual: number;
+  mesesAbastecimiento: number;
+  precioUnitario: number | null;
+  valorTotal: number | null;
+  activo: boolean;
+  creadoEn: Date;
+  actualizadoEn: Date;
+}
+
+interface SnapshotGeneralRecord {
+  codigoInsumo: number;
+  renglon: number;
+  nombreInsumo: string;
+  presentacion?: string | null;
+  unidadMedida?: string | null;
+  caracteristicas?: string | null;
+  existenciasBodega: number;
   promedioMensual: number;
   mesesAbastecimiento: number;
   precioUnitario: number | null;
@@ -288,6 +307,43 @@ export class AbastecimientosService {
         caracteristicas: registro.caracteristicas,
         existenciasBodega,
         existenciasCocina,
+        promedioMensual,
+        mesesAbastecimiento,
+        precioUnitario,
+        valorTotal,
+        activo: registro.activo,
+        creadoEn: registro.creadoEn,
+        actualizadoEn: registro.actualizadoEn,
+      });
+    }
+
+    return map;
+  }
+
+  private construirSnapshotsGenerales(
+    registros: AbastecimientosGeneral[],
+  ): Map<number, SnapshotGeneralRecord> {
+    const map = new Map<number, SnapshotGeneralRecord>();
+
+    for (const registro of registros) {
+      const existenciasBodega = Number(registro.existenciasBodega ?? 0);
+      const promedioMensual = Number(registro.promedioMensual ?? 0);
+      const mesesAbastecimiento = Number(registro.mesesAbastecimiento ?? 0);
+      const precioUnitario = registro.precioUnitario
+        ? Number(registro.precioUnitario)
+        : null;
+      const valorTotal = precioUnitario
+        ? Number((existenciasBodega * precioUnitario).toFixed(2))
+        : null;
+
+      map.set(registro.codigoInsumo, {
+        codigoInsumo: registro.codigoInsumo,
+        renglon: registro.renglon,
+        nombreInsumo: registro.nombreInsumo,
+        presentacion: registro.presentacion,
+        unidadMedida: registro.unidadMedida,
+        caracteristicas: registro.caracteristicas,
+        existenciasBodega,
         promedioMensual,
         mesesAbastecimiento,
         precioUnitario,
@@ -563,7 +619,21 @@ export class AbastecimientosService {
         ...Array.from(consumoMap.keys()),
       ]);
 
-      const insumos = Array.from(codigos.values()).map((codigo) => {
+      const codigosArray = Array.from(codigos.values());
+      const estadosRegistrados = codigosArray.length
+        ? await this.prisma.abastecimientosEstado.findMany({
+            where: {
+              anio,
+              mes,
+              codigoInsumo: { in: codigosArray },
+            },
+          })
+        : [];
+      const estadoMap = new Map<number, boolean>(
+        estadosRegistrados.map((estado) => [estado.codigoInsumo, estado.activo]),
+      );
+
+      const insumos = codigosArray.map((codigo) => {
         const inventario = inventarioMap.get(codigo);
         const snapshot = snapshotMap.get(codigo);
         const consumo = consumoMap.get(codigo);
@@ -599,10 +669,18 @@ export class AbastecimientosService {
               precioUnitario: snapshot.precioUnitario,
               valorTotal: snapshot.valorTotal,
               activo: snapshot.activo,
-              creadoEn: snapshot.creadoEn,
-              actualizadoEn: snapshot.actualizadoEn,
+              creadoEn: snapshot.creadoEn.toISOString(),
+              actualizadoEn: snapshot.actualizadoEn.toISOString(),
             }
           : null;
+
+        const overrideActivo = estadoMap.get(codigo);
+        const activoBase = snapshotDatos?.activo ?? true;
+        const activoFinal = overrideActivo ?? activoBase;
+
+        if (snapshotDatos) {
+          snapshotDatos.activo = activoFinal;
+        }
 
         return {
           codigoInsumo: codigo,
@@ -623,14 +701,14 @@ export class AbastecimientosService {
           },
           consumo: consumo?.periodos ?? {},
           lotes: inventario?.lotes ?? [],
+          estadoActivo: activoFinal,
         };
       });
 
       const resumen = insumos.reduce(
         (acc, item) => {
           acc.totalInsumos += 1;
-          const activo = item.snapshot ? item.snapshot.activo : true;
-          if (activo) acc.activos += 1;
+          if (item.estadoActivo) acc.activos += 1;
           else acc.inactivos += 1;
 
           acc.existenciasBodegaActual += item.calculado.existenciasBodega;
@@ -689,6 +767,233 @@ export class AbastecimientosService {
       this.logger.error(`Error al listar abastecimientos: ${error instanceof Error ? error.message : error}`);
       throw new HttpException(
         'Ocurrió un error al consultar los abastecimientos',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async listarGeneral(query: ListarAbastecimientosQueryDto) {
+    try {
+      const { anio, mes, idUsuario } = query;
+      const { renglones, sinPermisos } = await this.resolveRenglonesFiltro({
+        idUsuario,
+        renglones: query.renglones,
+      });
+
+      if (sinPermisos) {
+        return {
+          periodo: this.calcularPeriodo(anio, mes),
+          resumen: {
+            totalInsumos: 0,
+            activos: 0,
+            inactivos: 0,
+            existenciasBodegaActual: 0,
+            valorInventarioEstimado: 0,
+            promedioMesesCobertura: 0,
+          },
+          insumos: [],
+          consumo: {
+            periodos: [],
+          },
+        };
+      }
+
+      const periodo = this.calcularPeriodo(anio, mes);
+
+      const [snapshots, inventarioRaw, consumoDetalle] = await Promise.all([
+        this.prisma.abastecimientosGeneral.findMany({
+          where: {
+            anio,
+            mes,
+            ...(renglones.length ? { renglon: { in: renglones } } : {}),
+          },
+        }),
+        this.prisma.inventario.findMany({
+          where: {
+            cantidadDisponible: { gt: 0 },
+            ...(renglones.length ? { renglon: { in: renglones } } : {}),
+          },
+          select: {
+            renglon: true,
+            codigoInsumo: true,
+            nombreInsumo: true,
+            caracteristicas: true,
+            presentacion: true,
+            unidadMedida: true,
+            cantidadDisponible: true,
+            precioUnitario: true,
+            precioTotal: true,
+            lote: true,
+            fechaVencimiento: true,
+            cartaCompromiso: true,
+            mesesDevolucion: true,
+          },
+        }),
+        this.obtenerConsumoPorInsumo({
+          anio,
+          mes,
+          idUsuario,
+          renglones,
+        }),
+      ]);
+
+      const inventarioMap = this.agregarInventario(inventarioRaw);
+      const snapshotMap = this.construirSnapshotsGenerales(snapshots);
+      const consumoMap = consumoDetalle.consumoMap;
+
+      const codigos = new Set<number>([
+        ...Array.from(inventarioMap.keys()),
+        ...Array.from(snapshotMap.keys()),
+        ...Array.from(consumoMap.keys()),
+      ]);
+
+      const codigosArray = Array.from(codigos.values());
+      const estadosRegistrados = codigosArray.length
+        ? await this.prisma.abastecimientosEstado.findMany({
+            where: {
+              anio,
+              mes,
+              codigoInsumo: { in: codigosArray },
+            },
+          })
+        : [];
+      const estadoMap = new Map<number, boolean>(
+        estadosRegistrados.map((estado) => [estado.codigoInsumo, estado.activo]),
+      );
+
+      const insumos = codigosArray.map((codigo) => {
+        const inventario = inventarioMap.get(codigo);
+        const snapshot = snapshotMap.get(codigo);
+        const consumo = consumoMap.get(codigo);
+
+        const renglon = snapshot?.renglon ?? inventario?.renglon ?? consumo?.renglon ?? 0;
+        const nombreInsumo = snapshot?.nombreInsumo ?? inventario?.nombreInsumo ?? consumo?.nombreInsumo ?? 'SIN NOMBRE';
+        const caracteristicas = snapshot?.caracteristicas ?? inventario?.caracteristicas ?? consumo?.caracteristicas ?? null;
+        const presentacion = snapshot?.presentacion ?? inventario?.presentacion ?? null;
+        const unidadMedida = snapshot?.unidadMedida ?? inventario?.unidadMedida ?? null;
+
+        const existenciasBodegaActual = inventario?.existenciasBodega ?? 0;
+        const existenciasTotalesActual = existenciasBodegaActual;
+
+        const promedioSugerido = this.obtenerPromedioPreferido(consumo);
+        const mesesSugeridos = this.calcularMesesAbastecimiento(
+          existenciasTotalesActual,
+          promedioSugerido,
+        );
+
+        const precioPreferido = snapshot?.precioUnitario ?? inventario?.precioPromedio ?? null;
+        const valorInventario = precioPreferido
+          ? Number((existenciasTotalesActual * precioPreferido).toFixed(2))
+          : null;
+
+        const snapshotDatos = snapshot
+          ? {
+              existenciasBodega: snapshot.existenciasBodega,
+              existenciasTotales: snapshot.existenciasBodega,
+              promedioMensual: snapshot.promedioMensual,
+              mesesAbastecimiento: snapshot.mesesAbastecimiento,
+              precioUnitario: snapshot.precioUnitario,
+              valorTotal: snapshot.valorTotal,
+              activo: snapshot.activo,
+              creadoEn: snapshot.creadoEn.toISOString(),
+              actualizadoEn: snapshot.actualizadoEn.toISOString(),
+            }
+          : null;
+
+        const overrideActivo = estadoMap.get(codigo);
+        const activoBase = snapshotDatos?.activo ?? true;
+        const activoFinal = overrideActivo ?? activoBase;
+
+        if (snapshotDatos) {
+          snapshotDatos.activo = activoFinal;
+        }
+
+        return {
+          codigoInsumo: codigo,
+          renglon,
+          nombreInsumo,
+          caracteristicas,
+          presentacion,
+          unidadMedida,
+          snapshot: snapshotDatos,
+          calculado: {
+            existenciasBodega: existenciasBodegaActual,
+            existenciasTotales: existenciasTotalesActual,
+            promedioMensualSugerido: Number(promedioSugerido.toFixed(2)),
+            mesesAbastecimiento: mesesSugeridos,
+            precioUnitario: precioPreferido,
+            valorInventario,
+          },
+          consumo: consumo?.periodos ?? {},
+          lotes: inventario?.lotes ?? [],
+          estadoActivo: activoFinal,
+        };
+      });
+
+      const resumen = insumos.reduce(
+        (acc, item) => {
+          acc.totalInsumos += 1;
+          if (item.estadoActivo) acc.activos += 1;
+          else acc.inactivos += 1;
+
+          acc.existenciasBodegaActual += item.calculado.existenciasBodega;
+          acc.valorInventarioEstimado += item.calculado.valorInventario ?? 0;
+          acc.promedioMesesCobertura += item.calculado.mesesAbastecimiento;
+          return acc;
+        },
+        {
+          totalInsumos: 0,
+          activos: 0,
+          inactivos: 0,
+          existenciasBodegaActual: 0,
+          valorInventarioEstimado: 0,
+          promedioMesesCobertura: 0,
+        },
+      );
+
+      resumen.promedioMesesCobertura = insumos.length
+        ? Number((resumen.promedioMesesCobertura / insumos.length).toFixed(2))
+        : 0;
+
+      const consumoGlobal = {
+        periodos: consumoDetalle.detalle?.periodos?.map((periodo) => ({
+          etiqueta: periodo.etiqueta,
+          mesesConsiderados: periodo.mesesConsiderados,
+          mesesConDatos: periodo.mesesConDatos,
+          totalCantidad: periodo.totalCantidad,
+          totalGeneral: periodo.totalGeneral,
+          totalDespachos: periodo.totalDespachos,
+          promedioCantidad: periodo.promedioCantidad,
+          promedioGeneral: periodo.promedioGeneral,
+          promedioDespachos: periodo.promedioDespachos,
+        })) ?? [],
+      };
+
+      return {
+        periodo: {
+          anio: periodo.anio,
+          mes: periodo.mes,
+          nombreMes: periodo.nombreMes,
+          fechaInicio: periodo.fechaInicio.toISOString(),
+          fechaFin: periodo.fechaFin.toISOString(),
+        },
+        resumen: {
+          totalInsumos: resumen.totalInsumos,
+          activos: resumen.activos,
+          inactivos: resumen.inactivos,
+          existenciasBodegaActual: Math.round(resumen.existenciasBodegaActual),
+          valorInventarioEstimado: Number(resumen.valorInventarioEstimado.toFixed(2)),
+          promedioMesesCobertura: resumen.promedioMesesCobertura,
+        },
+        insumos,
+        consumo: consumoGlobal,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error al listar abastecimientos general: ${error instanceof Error ? error.message : error}`,
+      );
+      throw new HttpException(
+        'Ocurrió un error al consultar los abastecimientos general',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -924,6 +1229,308 @@ export class AbastecimientosService {
       }
       throw new HttpException(
         'No fue posible guardar los abastecimientos',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async guardarGeneral(dto: GuardarAbastecimientosGeneralDto) {
+    if (!dto.insumos || !dto.insumos.length) {
+      throw new HttpException('Debe proporcionar al menos un insumo para guardar', HttpStatus.BAD_REQUEST);
+    }
+
+    const fechaConsulta = this.parseFechaISO(dto.fechaConsulta, 'fechaConsulta');
+
+    const resumenPayload: Prisma.InputJsonValue = {
+      totalInsumos: Math.max(0, Math.trunc(dto.resumen.totalInsumos ?? 0)),
+      activos: Math.max(0, Math.trunc(dto.resumen.activos ?? 0)),
+      inactivos: Math.max(0, Math.trunc(dto.resumen.inactivos ?? 0)),
+      existenciasBodegaActual: Number(Number(dto.resumen.existenciasBodegaActual ?? 0).toFixed(2)),
+      valorInventarioEstimado: Number(Number(dto.resumen.valorInventarioEstimado ?? 0).toFixed(2)),
+      promedioMesesCobertura: Number(Number(dto.resumen.promedioMesesCobertura ?? 0).toFixed(2)),
+    };
+
+    const coberturaPayload: Prisma.InputJsonValue = {
+      filas: (dto.cobertura.filas ?? []).map((fila) => ({
+        etiqueta: fila.etiqueta,
+        cantidad: Number(Number(fila.cantidad ?? 0).toFixed(2)),
+        porcentaje: Number(Number(fila.porcentaje ?? 0).toFixed(2)),
+      })),
+      totalCantidad: Number(Number(dto.cobertura.totalCantidad ?? 0).toFixed(2)),
+      totalPorcentaje: Number(Number(dto.cobertura.totalPorcentaje ?? 0).toFixed(2)),
+      disponibilidad: Number(Number(dto.cobertura.disponibilidad ?? 0).toFixed(2)),
+      abastecimiento: Number(Number(dto.cobertura.abastecimiento ?? 0).toFixed(2)),
+    };
+
+    const { renglones, sinPermisos } = await this.resolveRenglonesFiltro({
+      idUsuario: dto.idUsuario,
+      renglones: dto.renglones,
+    });
+
+    if (sinPermisos) {
+      throw new HttpException(
+        'El usuario no tiene renglones asignados para registrar abastecimientos',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const codigosProcesados = new Set<number>();
+    const historialInsumos: Array<Record<string, unknown>> = [];
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        for (const insumo of dto.insumos) {
+          const codigo = Number(insumo.codigoInsumo);
+          const renglon = Number(insumo.renglon);
+
+          if (!Number.isFinite(codigo) || codigo <= 0) {
+            throw new HttpException(
+              `Código de insumo inválido en el payload: ${insumo.codigoInsumo}`,
+              HttpStatus.BAD_REQUEST,
+            );
+          }
+
+          if (!Number.isFinite(renglon) || renglon <= 0) {
+            throw new HttpException(
+              `Renglón inválido para el insumo ${codigo}`,
+              HttpStatus.BAD_REQUEST,
+            );
+          }
+
+          if (codigosProcesados.has(codigo)) {
+            continue;
+          }
+
+          if (renglones.length && !renglones.includes(renglon)) {
+            throw new HttpException(
+              `El renglón ${renglon} del insumo ${codigo} no está autorizado para este usuario`,
+              HttpStatus.FORBIDDEN,
+            );
+          }
+
+          const existenciasBodega = Math.max(0, Math.trunc(Number(insumo.existenciasBodega ?? 0)));
+
+          const promedioMensual = Number.isFinite(insumo.promedioMensual)
+            ? Math.max(0, Number(Number(insumo.promedioMensual).toFixed(4)))
+            : 0;
+          const precioUnitario = Number.isFinite(insumo.precioUnitario)
+            ? Number(Number(insumo.precioUnitario).toFixed(4))
+            : null;
+
+          const totalUnidadesRaw = Number(insumo.totalUnidades);
+          const totalUnidades = Number.isFinite(totalUnidadesRaw)
+            ? Math.max(0, Number(totalUnidadesRaw.toFixed(4)))
+            : existenciasBodega;
+
+          const consumoMensualRaw = Number(insumo.consumoMensual);
+          const consumoMensual = Number.isFinite(consumoMensualRaw)
+            ? Math.max(0, Number(consumoMensualRaw.toFixed(4)))
+            : promedioMensual;
+
+          const mesesCoberturaRaw = Number(insumo.mesesCobertura);
+          const mesesAbastecimiento = Number.isFinite(mesesCoberturaRaw)
+            ? Math.max(0, Number(mesesCoberturaRaw.toFixed(4)))
+            : this.calcularMesesAbastecimiento(totalUnidades, consumoMensual || promedioMensual);
+
+          const valorEstimadoRaw = Number(insumo.valorEstimado);
+          const valorEstimado = Number.isFinite(valorEstimadoRaw)
+            ? Math.max(0, Number(valorEstimadoRaw.toFixed(2)))
+            : (precioUnitario !== null
+                ? Number((totalUnidades * precioUnitario).toFixed(2))
+                : null);
+
+          historialInsumos.push({
+            codigoInsumo: codigo,
+            renglon,
+            existenciasBodega,
+            promedioMensual,
+            precioUnitario,
+            nombreInsumo: insumo.nombreInsumo ?? '',
+            presentacion: insumo.presentacion ?? null,
+            unidadMedida: insumo.unidadMedida ?? null,
+            caracteristicas: insumo.caracteristicas ?? null,
+            activo: Boolean(insumo.activo),
+            totalUnidades,
+            consumoMensual,
+            mesesCobertura: mesesAbastecimiento,
+            valorEstimado,
+          });
+
+          await tx.abastecimientosGeneral.upsert({
+            where: {
+              anio_mes_codigoInsumo: {
+                anio: dto.anio,
+                mes: dto.mes,
+                codigoInsumo: codigo,
+              },
+            },
+            update: {
+              renglon,
+              nombreInsumo: insumo.nombreInsumo ?? '',
+              presentacion: insumo.presentacion ?? '',
+              unidadMedida: insumo.unidadMedida ?? null,
+              caracteristicas: insumo.caracteristicas ?? null,
+              existenciasBodega,
+              promedioMensual: new Prisma.Decimal(promedioMensual.toFixed(4)),
+              mesesAbastecimiento: new Prisma.Decimal(mesesAbastecimiento.toFixed(4)),
+              precioUnitario: precioUnitario !== null
+                ? new Prisma.Decimal(precioUnitario.toFixed(4))
+                : null,
+              activo: Boolean(insumo.activo),
+            },
+            create: {
+              anio: dto.anio,
+              mes: dto.mes,
+              renglon,
+              codigoInsumo: codigo,
+              nombreInsumo: insumo.nombreInsumo ?? '',
+              presentacion: insumo.presentacion ?? '',
+              unidadMedida: insumo.unidadMedida ?? null,
+              caracteristicas: insumo.caracteristicas ?? null,
+              existenciasBodega,
+              promedioMensual: new Prisma.Decimal(promedioMensual.toFixed(4)),
+              mesesAbastecimiento: new Prisma.Decimal(mesesAbastecimiento.toFixed(4)),
+              precioUnitario: precioUnitario !== null
+                ? new Prisma.Decimal(precioUnitario.toFixed(4))
+                : null,
+              activo: Boolean(insumo.activo),
+            },
+          });
+
+          codigosProcesados.add(codigo);
+        }
+
+        if (!historialInsumos.length) {
+          throw new HttpException(
+            'No se pudo registrar el historial porque no hubo insumos válidos',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+
+        await tx.abastecimientosGeneralHistorial.create({
+          data: {
+            anio: dto.anio,
+            mes: dto.mes,
+            fechaConsulta,
+            idUsuario: dto.idUsuario ?? null,
+            resumen: resumenPayload,
+            cobertura: coberturaPayload,
+            insumos: historialInsumos as unknown as Prisma.InputJsonValue,
+          },
+        });
+      });
+
+      const registros = await this.prisma.abastecimientosGeneral.findMany({
+        where: {
+          anio: dto.anio,
+          mes: dto.mes,
+          codigoInsumo: { in: Array.from(codigosProcesados.values()) },
+        },
+      });
+
+      return {
+        anio: dto.anio,
+        mes: dto.mes,
+        registros: registros.map((registro) => ({
+          codigoInsumo: registro.codigoInsumo,
+          renglon: registro.renglon,
+          nombreInsumo: registro.nombreInsumo,
+          presentacion: registro.presentacion,
+          unidadMedida: registro.unidadMedida,
+          caracteristicas: registro.caracteristicas,
+          existenciasBodega: registro.existenciasBodega,
+          promedioMensual: Number(registro.promedioMensual ?? 0),
+          mesesAbastecimiento: Number(registro.mesesAbastecimiento ?? 0),
+          precioUnitario: registro.precioUnitario ? Number(registro.precioUnitario) : null,
+          activo: registro.activo,
+          actualizadoEn: registro.actualizadoEn,
+        })),
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error al guardar abastecimientos general: ${error instanceof Error ? error.message : error}`,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'No fue posible guardar los abastecimientos general',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async actualizarEstadoAbastecimiento(
+    dto: ActualizarEstadoAbastecimientoDto,
+  ) {
+    const { anio, mes, codigoInsumo, activo } = dto;
+
+    try {
+      const periodo = this.calcularPeriodo(anio, mes);
+
+      const estado = await this.prisma.$transaction(async (tx) => {
+        const registro = await tx.abastecimientosEstado.upsert({
+          where: {
+            anio_mes_codigoInsumo: { anio, mes, codigoInsumo },
+          },
+          update: {
+            activo,
+          },
+          create: {
+            anio,
+            mes,
+            codigoInsumo,
+            activo,
+          },
+        });
+
+        await tx.abastecimientos.updateMany({
+          where: {
+            anio,
+            mes,
+            codigoInsumo,
+          },
+          data: {
+            activo,
+          },
+        });
+
+        await tx.abastecimientosGeneral.updateMany({
+          where: {
+            anio,
+            mes,
+            codigoInsumo,
+          },
+          data: {
+            activo,
+          },
+        });
+
+        return registro;
+      });
+
+      return {
+        anio,
+        mes,
+        codigoInsumo,
+        activo: estado.activo,
+        creadoEn: estado.creadoEn.toISOString(),
+        actualizadoEn: estado.actualizadoEn.toISOString(),
+        periodo: {
+          nombre: periodo.nombreMes,
+          inicio: periodo.fechaInicio.toISOString(),
+          fin: periodo.fechaFin.toISOString(),
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error al actualizar estado del insumo ${codigoInsumo} para ${anio}-${mes}: ${error instanceof Error ? error.message : error}`,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'No fue posible actualizar el estado del insumo',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
