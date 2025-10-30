@@ -41,6 +41,26 @@ export interface ConsumoMensualResponse {
   totalGeneral: number;
   totalDespachos: number;
   meses: ConsumoMensualResumen[];
+  insumos: ConsumoInsumoAnualResumen[];
+}
+
+interface ConsumoInsumoMesDetalle {
+  mes: number;
+  nombreMes: string;
+  totalCantidad: number;
+  totalGeneral: number;
+  totalDespachos: number;
+}
+
+interface ConsumoInsumoAnualResumen {
+  codigoInsumo: number;
+  nombreInsumo: string;
+  caracteristicas: string;
+  renglon?: number | null;
+  meses: ConsumoInsumoMesDetalle[];
+  totalCantidad: number;
+  totalGeneral: number;
+  totalDespachos: number;
 }
 
 interface DiaCalendarioConsumo {
@@ -240,6 +260,22 @@ export class ReportesService {
     return { anio, mes: mes - 1 };
   }
 
+  private obtenerMesOperativo(fecha: Date) {
+    const anio = fecha.getFullYear();
+    let mes = fecha.getMonth() + 1;
+    let anioOperativo = anio;
+
+    if (fecha.getDate() >= 26) {
+      mes += 1;
+      if (mes === 13) {
+        mes = 1;
+        anioOperativo += 1;
+      }
+    }
+
+    return { anio: anioOperativo, mes };
+  }
+
   private formatearFechaISO(fecha: Date): string {
     return fecha.toISOString().slice(0, 10);
   }
@@ -404,6 +440,61 @@ export class ReportesService {
     });
   }
 
+  private async obtenerInsumosInventarioBase(query: ReporteFiltroQueryDto) {
+    const { renglones, sinPermisos } = await this.resolverRenglonesFiltro(query);
+
+    if (sinPermisos) {
+      return [] as Array<{
+        codigoInsumo: number;
+        nombreInsumo: string;
+        caracteristicas: string;
+        renglon: number | null;
+      }>;
+    }
+
+    const where: Prisma.InventarioWhereInput = {};
+
+    if (query.codigoInsumo) {
+      where.codigoInsumo = query.codigoInsumo;
+    }
+
+    if (renglones.length) {
+      where.renglon = {
+        in: renglones,
+      };
+    }
+
+    const inventario = await this.prisma.inventario.findMany({
+      where,
+      select: {
+        codigoInsumo: true,
+        nombreInsumo: true,
+        caracteristicas: true,
+        renglon: true,
+      },
+    });
+
+    const mapa = new Map<number, {
+      codigoInsumo: number;
+      nombreInsumo: string;
+      caracteristicas: string;
+      renglon: number | null;
+    }>();
+
+    for (const item of inventario) {
+      if (!mapa.has(item.codigoInsumo)) {
+        mapa.set(item.codigoInsumo, {
+          codigoInsumo: item.codigoInsumo,
+          nombreInsumo: item.nombreInsumo,
+          caracteristicas: item.caracteristicas,
+          renglon: item.renglon,
+        });
+      }
+    }
+
+    return Array.from(mapa.values());
+  }
+
   private async construirConsumoPeriodo(
     etiqueta: 'mensual' | 'promedio3' | 'promedio7' | 'promedio12' | string,
     mesesConsiderados: number,
@@ -418,6 +509,7 @@ export class ReportesService {
     const rangoBase = rangos[rangos.length - 1];
 
     const detalles = await this.obtenerDetallesDespachos(query, fechaInicio, fechaFin);
+    const inventarioBase = await this.obtenerInsumosInventarioBase(query);
 
     const totalDespachosSet = new Set<number>();
     let totalCantidad = 0;
@@ -608,6 +700,50 @@ export class ReportesService {
       }
     }
 
+    for (const base of inventarioBase) {
+      let insumoData = insumosMap.get(base.codigoInsumo);
+      if (!insumoData) {
+        insumoData = {
+          codigoInsumo: base.codigoInsumo,
+          nombreInsumo: base.nombreInsumo,
+          caracteristicas: base.caracteristicas,
+          renglon: base.renglon,
+          totalCantidad: 0,
+          totalGeneral: 0,
+          despachoIds: new Set<number>(),
+          dias: incluirDias
+            ? new Map<
+                string,
+                {
+                  fecha: string;
+                  anio: number;
+                  mes: number;
+                  dia: number;
+                  etiqueta: string;
+                  totalCantidad: number;
+                  totalGeneral: number;
+                  despachoIds: Set<number>;
+                }
+              >()
+            : undefined,
+        };
+        insumosMap.set(base.codigoInsumo, insumoData);
+      } else {
+        if ((insumoData.renglon === undefined || insumoData.renglon === null) && base.renglon !== null) {
+          insumoData.renglon = base.renglon;
+        }
+        if (!insumoData.nombreInsumo) {
+          insumoData.nombreInsumo = base.nombreInsumo;
+        }
+        if (!insumoData.caracteristicas) {
+          insumoData.caracteristicas = base.caracteristicas;
+        }
+        if (incluirDias && !insumoData.dias) {
+          insumoData.dias = new Map();
+        }
+      }
+    }
+
     const mesesResumen = Array.from(mesesResumenMap.values())
       .sort((a, b) => (a.anio === b.anio ? a.mes - b.mes : a.anio - b.anio))
       .map((mesItem) => ({
@@ -674,7 +810,13 @@ export class ReportesService {
           dias,
         } as ConsumoInsumoDetallePeriodo;
       })
-      .sort((a, b) => b.totalGeneral - a.totalGeneral);
+      .sort((a, b) => {
+        const diferencia = b.totalGeneral - a.totalGeneral;
+        if (diferencia !== 0) {
+          return diferencia;
+        }
+        return a.nombreInsumo.localeCompare(b.nombreInsumo, 'es', { sensitivity: 'base' });
+      });
 
     const mesesEsperados = mesesConsiderados;
     const mesesConDatos = mesesResumen.length;
@@ -1070,8 +1212,8 @@ export class ReportesService {
           ? anio
           : new Date().getFullYear();
 
-      const fechaInicio = new Date(anioObjetivo, 0, 1);
-      const fechaFin = new Date(anioObjetivo, 11, 31, 23, 59, 59, 999);
+  const fechaInicio = new Date(anioObjetivo - 1, 11, 26, 0, 0, 0, 0);
+  const fechaFin = new Date(anioObjetivo, 11, 25, 23, 59, 59, 999);
 
       let renglonesFiltrar: number[] = [];
       if (typeof renglones === 'string' && renglones.trim()) {
@@ -1094,7 +1236,15 @@ export class ReportesService {
           totalCantidad: 0,
           totalGeneral: 0,
           totalDespachos: 0,
-          meses: [],
+          meses: Array.from({ length: 12 }, (_, index) => ({
+            mes: index + 1,
+            nombreMes: this.getNombreMes(index + 1),
+            totalCantidad: 0,
+            totalGeneral: 0,
+            totalDespachos: 0,
+            renglones: [],
+          })),
+          insumos: [],
         };
       }
 
@@ -1160,6 +1310,8 @@ export class ReportesService {
         },
       });
 
+      const inventarioBase = await this.obtenerInsumosInventarioBase(query);
+
       const mesesMap = new Map<
         number,
         {
@@ -1187,6 +1339,27 @@ export class ReportesService {
         }
       >();
 
+      const insumosGlobalMap = new Map<
+        number,
+        {
+          codigoInsumo: number;
+          nombreInsumo: string;
+          caracteristicas: string;
+          renglon: number | null;
+          meses: Map<
+            number,
+            {
+              totalCantidad: number;
+              totalGeneral: number;
+              despachoIds: Set<number>;
+            }
+          >;
+          totalCantidad: number;
+          totalGeneral: number;
+          despachoIds: Set<number>;
+        }
+      >();
+
       const despachoIdsGlobal = new Set<number>();
       let totalCantidad = 0;
       let totalGeneral = 0;
@@ -1195,8 +1368,16 @@ export class ReportesService {
         const fechaDespacho = detalle.Despacho?.fechaDespacho;
         if (!fechaDespacho) continue;
 
-        const mes = (fechaDespacho.getMonth() ?? 0) + 1;
-        const mesData = mesesMap.get(mes);
+        if (fechaDespacho < fechaInicio || fechaDespacho > fechaFin) {
+          continue;
+        }
+
+        const { anio: anioOperativo, mes: mesOperativo } = this.obtenerMesOperativo(fechaDespacho);
+        if (anioOperativo !== anioObjetivo) {
+          continue;
+        }
+
+        const mesData = mesesMap.get(mesOperativo);
         const precioTotal = Number(detalle.precioTotal ?? 0);
 
         let mesResumen = mesData;
@@ -1207,7 +1388,7 @@ export class ReportesService {
             despachoIds: new Set<number>(),
             renglones: new Map(),
           };
-          mesesMap.set(mes, mesResumen);
+          mesesMap.set(mesOperativo, mesResumen);
         }
 
         mesResumen.totalCantidad += detalle.cantidad;
@@ -1255,6 +1436,86 @@ export class ReportesService {
         insumoResumen.totalCantidad += detalle.cantidad;
         insumoResumen.totalGeneral += precioTotal;
         insumoResumen.despachoIds.add(detalle.idDespacho);
+
+        let insumoGlobal = insumosGlobalMap.get(insumoCodigo);
+        if (!insumoGlobal) {
+          insumoGlobal = {
+            codigoInsumo: insumoCodigo,
+            nombreInsumo: detalle.nombreInsumo,
+            caracteristicas: detalle.caracteristicas,
+            renglon: renglonDetalle ?? null,
+            meses: new Map(),
+            totalCantidad: 0,
+            totalGeneral: 0,
+            despachoIds: new Set<number>(),
+          };
+          insumosGlobalMap.set(insumoCodigo, insumoGlobal);
+        } else {
+          if (!insumoGlobal.nombreInsumo) {
+            insumoGlobal.nombreInsumo = detalle.nombreInsumo;
+          }
+          if (!insumoGlobal.caracteristicas) {
+            insumoGlobal.caracteristicas = detalle.caracteristicas;
+          }
+          if (insumoGlobal.renglon === null || insumoGlobal.renglon === undefined) {
+            insumoGlobal.renglon = renglonDetalle ?? null;
+          }
+        }
+
+        const mesGlobal = insumoGlobal.meses.get(mesOperativo) ?? {
+          totalCantidad: 0,
+          totalGeneral: 0,
+          despachoIds: new Set<number>(),
+        };
+        mesGlobal.totalCantidad += detalle.cantidad;
+        mesGlobal.totalGeneral += precioTotal;
+        if (detalle.idDespacho) {
+          mesGlobal.despachoIds.add(detalle.idDespacho);
+        }
+        insumoGlobal.meses.set(mesOperativo, mesGlobal);
+        insumoGlobal.totalCantidad += detalle.cantidad;
+        insumoGlobal.totalGeneral += precioTotal;
+        if (detalle.idDespacho) {
+          insumoGlobal.despachoIds.add(detalle.idDespacho);
+        }
+      }
+
+      for (const base of inventarioBase) {
+        let insumoGlobal = insumosGlobalMap.get(base.codigoInsumo);
+        if (!insumoGlobal) {
+          insumoGlobal = {
+            codigoInsumo: base.codigoInsumo,
+            nombreInsumo: base.nombreInsumo,
+            caracteristicas: base.caracteristicas,
+            renglon: base.renglon ?? null,
+            meses: new Map(),
+            totalCantidad: 0,
+            totalGeneral: 0,
+            despachoIds: new Set<number>(),
+          };
+          insumosGlobalMap.set(base.codigoInsumo, insumoGlobal);
+        } else {
+          if (!insumoGlobal.nombreInsumo) {
+            insumoGlobal.nombreInsumo = base.nombreInsumo;
+          }
+          if (!insumoGlobal.caracteristicas) {
+            insumoGlobal.caracteristicas = base.caracteristicas;
+          }
+          if (insumoGlobal.renglon === null || insumoGlobal.renglon === undefined) {
+            insumoGlobal.renglon = base.renglon ?? null;
+          }
+        }
+      }
+
+      for (let mes = 1; mes <= 12; mes++) {
+        if (!mesesMap.has(mes)) {
+          mesesMap.set(mes, {
+            totalCantidad: 0,
+            totalGeneral: 0,
+            despachoIds: new Set<number>(),
+            renglones: new Map(),
+          });
+        }
       }
 
       const meses: ConsumoMensualResumen[] = Array.from(mesesMap.entries())
@@ -1289,12 +1550,48 @@ export class ReportesService {
           };
         });
 
+      const insumos = Array.from(insumosGlobalMap.values())
+        .map((insumo) => {
+          const mesesDetalle: ConsumoInsumoMesDetalle[] = [];
+          for (let mes = 1; mes <= 12; mes++) {
+            const info = insumo.meses.get(mes);
+            mesesDetalle.push({
+              mes,
+              nombreMes: this.getNombreMes(mes),
+              totalCantidad: info ? info.totalCantidad : 0,
+              totalGeneral: info ? Number(info.totalGeneral) : 0,
+              totalDespachos: info ? info.despachoIds.size : 0,
+            });
+          }
+
+          return {
+            codigoInsumo: insumo.codigoInsumo,
+            nombreInsumo: insumo.nombreInsumo,
+            caracteristicas: insumo.caracteristicas,
+            renglon: insumo.renglon ?? null,
+            meses: mesesDetalle,
+            totalCantidad: insumo.totalCantidad,
+            totalGeneral: Number(insumo.totalGeneral),
+            totalDespachos: insumo.despachoIds.size,
+          } as ConsumoInsumoAnualResumen;
+        })
+        .sort((a, b) => {
+          const diff = b.totalCantidad - a.totalCantidad;
+          if (diff !== 0) {
+            return diff;
+          }
+          return a.nombreInsumo.localeCompare(b.nombreInsumo, 'es', {
+            sensitivity: 'base',
+          });
+        });
+
       return {
         anio: anioObjetivo,
         totalCantidad,
         totalGeneral: Number(totalGeneral),
         totalDespachos: despachoIdsGlobal.size,
         meses,
+        insumos,
       };
     } catch (error) {
       this.logger.error(
