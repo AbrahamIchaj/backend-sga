@@ -11,12 +11,43 @@ import {
 import { AbastecimientosService } from '../Services/abastecimientos.service';
 import { ListarAbastecimientosQueryDto } from '../dto/listar-abastecimientos.dto';
 import { GuardarAbastecimientosGeneralDto } from '../dto/guardar-abastecimientos-general.dto';
+import { ListarHistorialAbastecimientosQueryDto } from '../dto/listar-historial-abastecimientos.dto';
 
 @Controller('abastecimientos-general')
 export class AbastecimientosGeneralController {
   private readonly logger = new Logger(AbastecimientosGeneralController.name);
 
   constructor(private readonly abastecimientosService: AbastecimientosService) {}
+
+  @Get('historial')
+  async listarHistorial(
+    @Query() query: ListarHistorialAbastecimientosQueryDto,
+  ): Promise<any> {
+    try {
+      this.logger.log(
+        `Consultando historial de abastecimientos general con filtros ${JSON.stringify(query)}`,
+      );
+
+      const data = await this.abastecimientosService.listarHistorialGeneral(query);
+
+      return {
+        success: true,
+        message: 'Historial general obtenido correctamente',
+        data,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error al consultar historial general de abastecimientos: ${error instanceof Error ? error.message : error}`,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Ocurrió un error al consultar el historial general de abastecimientos',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   @Get()
   async listar(@Query() query: ListarAbastecimientosQueryDto): Promise<any> {

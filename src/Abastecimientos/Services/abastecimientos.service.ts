@@ -543,6 +543,101 @@ export class AbastecimientosService {
     }
   }
 
+  async listarHistorialGeneral(query: ListarHistorialAbastecimientosQueryDto) {
+    try {
+      const where: Prisma.AbastecimientosGeneralHistorialWhereInput = {};
+
+      const { renglones, sinPermisos } = await this.resolveRenglonesFiltro({
+        idUsuario: query.idUsuario,
+        renglones: query.renglones,
+      });
+
+      if (sinPermisos) {
+        return [];
+      }
+
+      if (query.anio) {
+        where.anio = query.anio;
+      }
+
+      if (query.mes) {
+        where.mes = query.mes;
+      }
+
+      let fechaInicio: Date | undefined;
+      let fechaFin: Date | undefined;
+
+      if (query.fechaDesde) {
+        fechaInicio = this.parseFechaISO(query.fechaDesde, 'fechaDesde', 'start');
+      }
+
+      if (query.fechaHasta) {
+        fechaFin = this.parseFechaISO(query.fechaHasta, 'fechaHasta', 'end');
+      }
+
+      if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
+        throw new HttpException(
+          'La fecha de inicio no puede ser posterior a la fecha fin',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (fechaInicio || fechaFin) {
+        where.fechaConsulta = {};
+        if (fechaInicio) {
+          where.fechaConsulta.gte = fechaInicio;
+        }
+        if (fechaFin) {
+          where.fechaConsulta.lte = fechaFin;
+        }
+      }
+
+      const registros = await this.prisma.abastecimientosGeneralHistorial.findMany({
+        where,
+        orderBy: { fechaConsulta: 'desc' },
+        take: 250,
+      });
+
+      return registros.map((registro) => {
+        const resumen = this.normalizeJson<Record<string, unknown>>(registro.resumen);
+        const cobertura = this.normalizeJson<Record<string, unknown>>(registro.cobertura);
+        const insumosRaw = this.normalizeJson<Array<Record<string, unknown>>>(registro.insumos) ?? [];
+        const insumos = renglones.length
+          ? insumosRaw.filter((insumo) => {
+              const renglonValor = (insumo as Record<string, unknown>)['renglon'];
+              const renglon = Number(renglonValor ?? 0);
+              return Number.isFinite(renglon) && renglones.includes(renglon);
+            })
+          : insumosRaw;
+
+        return {
+          idRegistro: registro.idRegistro,
+          anio: registro.anio,
+          mes: registro.mes,
+          fechaConsulta: registro.fechaConsulta.toISOString(),
+          resumen,
+          cobertura,
+          insumos,
+          creadoEn: registro.creadoEn.toISOString(),
+          actualizadoEn: registro.actualizadoEn
+            ? registro.actualizadoEn.toISOString()
+            : null,
+        };
+      });
+    } catch (error) {
+      this.logger.error(
+        `Error al consultar historial de abastecimientos general: ${error instanceof Error ? error.message : error}`,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Ocurrió un error al consultar el historial de abastecimientos general',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async listar(query: ListarAbastecimientosQueryDto) {
     try {
       const { anio, mes, idUsuario } = query;
