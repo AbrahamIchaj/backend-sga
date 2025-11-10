@@ -18,6 +18,7 @@ import {
   DespachoResponse,
   DisponibilidadProductoResponse,
 } from '../dto/despacho-response.dto';
+import { obtenerRenglonesPermitidos } from '../../common/utils/renglones.util';
 
 type DespachoWithRelations = Prisma.DespachoGetPayload<{
   include: {
@@ -292,6 +293,8 @@ export class DespachosService {
       idServicio,
       idUsuario,
       buscar,
+      anio,
+      renglones = [],
     } = query;
 
     const where: Prisma.DespachoWhereInput = {};
@@ -303,10 +306,39 @@ export class DespachosService {
     if (idServicio) where.idServicio = idServicio;
     if (idUsuario) where.idUsuario = idUsuario;
 
-    if (fechaDesde || fechaHasta) {
-      where.fechaDespacho = {};
-      if (fechaDesde) where.fechaDespacho.gte = new Date(fechaDesde);
-      if (fechaHasta) where.fechaDespacho.lte = new Date(fechaHasta);
+    let fechaInicioFiltro = fechaDesde ? new Date(fechaDesde) : null;
+    let fechaFinFiltro = fechaHasta ? new Date(fechaHasta) : null;
+
+    const normalizarFecha = (valor: Date | null): Date | null => {
+      if (!valor || Number.isNaN(valor.getTime())) {
+        return null;
+      }
+      return valor;
+    };
+
+    fechaInicioFiltro = normalizarFecha(fechaInicioFiltro);
+    fechaFinFiltro = normalizarFecha(fechaFinFiltro);
+
+    if (anio) {
+      const inicioAnio = new Date(anio, 0, 1, 0, 0, 0, 0);
+      const finAnio = new Date(anio, 11, 31, 23, 59, 59, 999);
+      fechaInicioFiltro = fechaInicioFiltro
+        ? inicioAnio > fechaInicioFiltro
+          ? inicioAnio
+          : fechaInicioFiltro
+        : inicioAnio;
+      fechaFinFiltro = fechaFinFiltro
+        ? finAnio < fechaFinFiltro
+          ? finAnio
+          : fechaFinFiltro
+        : finAnio;
+    }
+
+    if (fechaInicioFiltro || fechaFinFiltro) {
+      where.fechaDespacho = {
+        ...(fechaInicioFiltro ? { gte: fechaInicioFiltro } : {}),
+        ...(fechaFinFiltro ? { lte: fechaFinFiltro } : {}),
+      };
     }
 
     if (buscar) {
@@ -328,13 +360,33 @@ export class DespachosService {
       ];
     }
 
-    const skip = (page - 1) * limit;
+    let renglonesFiltro = Array.isArray(renglones) ? [...renglones] : [];
+    if (!renglonesFiltro.length && idUsuario) {
+      renglonesFiltro = await obtenerRenglonesPermitidos(
+        this.prisma,
+        idUsuario,
+      );
+    }
+
+    if (renglonesFiltro.length) {
+      where.Detalles = {
+        some: {
+          Inventario: {
+            renglon: { in: renglonesFiltro },
+          },
+        },
+      };
+    }
+
+    const pagina = page < 1 ? 1 : page;
+    const limite = limit < 1 ? 20 : limit;
+    const skip = (pagina - 1) * limite;
 
     const [despachos, total] = await Promise.all([
       this.prisma.despacho.findMany({
         where,
         skip,
-        take: limit,
+        take: limite,
         include: {
           Servicios: { select: { nombre: true } },
           Usuarios: { select: { nombres: true, apellidos: true } },
@@ -362,9 +414,9 @@ export class DespachosService {
       data,
       meta: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: pagina,
+        limit: limite,
+        totalPages: Math.ceil(total / limite),
       },
     };
   }

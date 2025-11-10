@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsDateString,
   IsInt,
   IsOptional,
@@ -6,7 +7,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class ListDespachosQueryDto {
   @IsOptional()
@@ -43,6 +44,33 @@ export class ListDespachosQueryDto {
   @IsInt()
   @Type(() => Number)
   idUsuario?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(2000)
+  anio?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    if (Array.isArray(value)) {
+      return value
+        .map((n) => Number(n))
+        .filter((n) => Number.isFinite(n) && n > 0);
+    }
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((item) => Number(item.trim()))
+        .filter((n) => Number.isFinite(n) && n > 0);
+    }
+    return undefined;
+  })
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  renglones?: number[];
 
   @IsOptional()
   @IsString()
