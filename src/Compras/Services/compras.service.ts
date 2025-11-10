@@ -292,30 +292,85 @@ export class ComprasService {
     proveedor?: string;
     desde?: string;
     hasta?: string;
+    fechaDesde?: string;
+    fechaHasta?: string;
     programa?: number;
     page?: number;
     limit?: number;
+    idUsuario?: number;
+    anio?: number;
+    renglones?: number[];
   }) {
-    const { proveedor, desde, hasta, programa, page = 1, limit = 20 } = params;
+    const {
+      proveedor,
+      desde,
+      hasta,
+      fechaDesde,
+      fechaHasta,
+      programa,
+      page = 1,
+      limit = 20,
+      idUsuario,
+      anio,
+      renglones = [],
+    } = params;
     const where: Prisma.IngresoComprasWhereInput = {};
     if (proveedor)
       where.proveedor = { contains: proveedor, mode: 'insensitive' };
-    if (desde || hasta) {
+    const fechaInicioFiltroRaw = fechaDesde ?? desde;
+    const fechaFinFiltroRaw = fechaHasta ?? hasta;
+
+    let fechaInicioFiltro = fechaInicioFiltroRaw
+      ? new Date(fechaInicioFiltroRaw)
+      : null;
+    let fechaFinFiltro = fechaFinFiltroRaw ? new Date(fechaFinFiltroRaw) : null;
+
+    if (anio) {
+      const inicioAnio = new Date(anio, 0, 1, 0, 0, 0, 0);
+      const finAnio = new Date(anio, 11, 31, 23, 59, 59, 999);
+      if (!fechaInicioFiltro || inicioAnio > fechaInicioFiltro) {
+        fechaInicioFiltro = inicioAnio;
+      }
+      if (!fechaFinFiltro || finAnio < fechaFinFiltro) {
+        fechaFinFiltro = finAnio;
+      }
+    }
+
+    if (fechaInicioFiltro || fechaFinFiltro) {
       where.fechaIngreso = {
-        ...(desde ? { gte: new Date(desde) } : {}),
-        ...(hasta ? { lte: new Date(hasta) } : {}),
+        ...(fechaInicioFiltro ? { gte: fechaInicioFiltro } : {}),
+        ...(fechaFinFiltro ? { lte: fechaFinFiltro } : {}),
       } as any;
     }
     if (programa) {
       where.programas = { has: programa };
     }
 
+    let renglonesFiltrados = Array.isArray(renglones) ? renglones : [];
+    if (!renglonesFiltrados.length && idUsuario) {
+      renglonesFiltrados = await obtenerRenglonesPermitidos(
+        this.prisma,
+        idUsuario,
+      );
+    }
+
+    if (renglonesFiltrados.length) {
+      where.IngresoComprasDetalle = {
+        some: {
+          renglon: { in: renglonesFiltrados },
+        },
+      };
+    }
+
+    const pagina = page < 1 ? 1 : page;
+    const limite = limit < 1 ? 20 : limit;
+
     const [data, total] = await this.prisma.$transaction([
       this.prisma.ingresoCompras.findMany({
         where,
         orderBy: { fechaIngreso: 'asc' },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: (pagina - 1) * limite,
+        take: limite,
         include: { IngresoComprasDetalle: true },
       }),
       this.prisma.ingresoCompras.count({ where }),
@@ -343,7 +398,7 @@ export class ComprasService {
       ),
     }));
 
-    return { data: resumen, total, page, limit };
+    return { data: resumen, total, page: pagina, limit: limite };
   }
 
   async update(id: number, dto: UpdateCompraDto) {

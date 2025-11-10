@@ -1,4 +1,4 @@
-const BASE_URL = process.env.BASE_URL || 'http://192.88.1.122:3000';
+const BASE_URL = process.env.BASE_URL || 'http://192.168.1.39:3000';
 const API_PREFIX = process.env.API_PREFIX || '/api/v1';
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
 
@@ -93,6 +93,18 @@ async function main() {
     {
       permiso: 'GESTIONAR_DASHBOARD',
       descripcion: 'Permite gestionar el dashboard.',
+    },
+    {
+      permiso: 'GESTIONAR_ABASTECIMIENTOS',
+      descripcion: 'Permite gestionar el abastecimiento 211.',
+    },
+    {
+      permiso: 'GESTIONAR_ABASTECIMIENTOS_GENERAL',
+      descripcion: 'Permite gestionar el abastecimiento general.',
+    },
+    {
+      permiso: 'GESTIONAR_REPORTES',
+      descripcion: 'Permite gestionar los reportes.',
     },
   ];
 

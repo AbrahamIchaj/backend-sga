@@ -5,8 +5,9 @@ import {
   Min,
   IsDateString,
   IsArray,
+  IsInt,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class UpdateCompraDto {
   @IsOptional()
@@ -72,6 +73,14 @@ export class ListComprasQueryDto {
   hasta?: string;
 
   @IsOptional()
+  @IsDateString()
+  fechaDesde?: string;
+
+  @IsOptional()
+  @IsDateString()
+  fechaHasta?: string;
+
+  @IsOptional()
   @Type(() => String)
   @IsString()
   numeroFactura?: string;
@@ -101,6 +110,41 @@ export class ListComprasQueryDto {
   @IsNumber()
   @Min(1)
   programa?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idUsuario?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(2000)
+  anio?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (!value) {
+      return undefined;
+    }
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => Number(item))
+        .filter((numero) => Number.isFinite(numero) && numero > 0);
+    }
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((item) => Number(item.trim()))
+        .filter((numero) => Number.isFinite(numero) && numero > 0);
+    }
+    return undefined;
+  })
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  renglones?: number[];
 }
 
 export type CompraResumen = {
