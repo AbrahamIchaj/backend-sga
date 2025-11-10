@@ -1,9 +1,9 @@
 import {
+  IsArray,
+  IsInt,
   IsOptional,
   IsString,
-  IsInt,
   IsDateString,
-  IsDecimal,
   Min,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
@@ -19,7 +19,7 @@ export class ListInventarioQueryDto {
   @IsInt()
   @Type(() => Number)
   @Min(1)
-  limit?: number = 10;
+  limit?: number;
 
   @IsOptional()
   @IsString()
@@ -68,6 +68,33 @@ export class ListInventarioQueryDto {
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   stockBajo?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idUsuario?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    if (Array.isArray(value)) {
+      return value
+        .map((n) => Number(n))
+        .filter((n) => Number.isFinite(n) && n > 0);
+    }
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((item) => Number(item.trim()))
+        .filter((n) => Number.isFinite(n) && n > 0);
+    }
+    return undefined;
+  })
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  renglones?: number[];
 }
 
 export class InventarioExistenciasDto {

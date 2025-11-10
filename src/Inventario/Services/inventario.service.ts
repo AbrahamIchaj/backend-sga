@@ -1,5 +1,6 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import {
   ListInventarioQueryDto,
   InventarioExistenciasDto,
@@ -14,6 +15,7 @@ import {
   MovimientosRecientesResponse,
   AlertasInventarioResponse,
 } from '../dto/inventario-response.dto';
+import { obtenerRenglonesPermitidos } from '../../common/utils/renglones.util';
 
 @Injectable()
 export class InventarioService {
@@ -38,7 +40,25 @@ export class InventarioService {
         presentacion,
         proximosVencer,
         stockBajo,
+        page = 1,
+        limit = 10,
+        idUsuario,
+        renglones = [],
       } = query as any;
+
+      const parsedPage = Number(page);
+      const pagina = Number.isFinite(parsedPage) && parsedPage > 0
+        ? Math.floor(parsedPage)
+        : 1;
+      const parsedLimit =
+        typeof limit !== 'undefined' && limit !== null
+          ? Number(limit)
+          : undefined;
+      const limite =
+        typeof parsedLimit !== 'undefined' && Number.isFinite(parsedLimit) && parsedLimit > 0
+          ? Math.floor(parsedLimit)
+          : undefined;
+      const skip = limite ? (pagina - 1) * limite : 0;
 
       // Normalizar filtros que pueden llegar como strings
       const parsedCodigoInsumo =
@@ -63,6 +83,21 @@ export class InventarioService {
       const where: any = {
         cantidadDisponible: { gt: 0 }, // Solo mostrar items con stock disponible
       };
+
+      let renglonesFiltro: number[] = Array.isArray(renglones)
+        ? renglones
+            .map((valor: any) => Number(valor))
+            .filter((valor) => Number.isFinite(valor) && valor > 0)
+        : [];
+      if (!renglonesFiltro.length && idUsuario) {
+        renglonesFiltro = await obtenerRenglonesPermitidos(
+          this.prisma,
+          Number(idUsuario),
+        );
+      }
+      if (renglonesFiltro.length) {
+        where.renglon = { in: renglonesFiltro };
+      }
 
       if (search) {
         where.OR = [
@@ -113,26 +148,33 @@ export class InventarioService {
       }
 
       // Sin paginación: devolver todos los registros que cumplan filtros (con límite razonable si quieres limitar)
-      const [inventario, total] = await Promise.all([
-        this.prisma.inventario.findMany({
-          where,
-          include: {
-            IngresoCompras: {
-              select: {
-                idIngresoCompras: true,
-                numeroFactura: true,
-                serieFactura: true,
-                fechaIngreso: true,
-                proveedor: true,
-              },
+      const findManyArgs: Prisma.InventarioFindManyArgs = {
+        where,
+        include: {
+          IngresoCompras: {
+            select: {
+              idIngresoCompras: true,
+              numeroFactura: true,
+              serieFactura: true,
+              fechaIngreso: true,
+              proveedor: true,
             },
           },
-          orderBy: [{ fechaVencimiento: 'asc' }, { codigoInsumo: 'asc' }],
-        }),
+        },
+        orderBy: [{ fechaVencimiento: 'asc' }, { codigoInsumo: 'asc' }],
+      };
+
+      if (limite) {
+        findManyArgs.skip = skip;
+        findManyArgs.take = limite;
+      }
+
+      const [inventario, total] = await Promise.all([
+        this.prisma.inventario.findMany(findManyArgs),
         this.prisma.inventario.count({ where }),
       ]);
 
-      const data: InventarioResponse[] = inventario.map((item) => {
+      const data: InventarioResponse[] = (inventario as any[]).map((item: any) => {
         const ingreso = item.IngresoCompras;
         return {
           idInventario: item.idInventario,
@@ -168,6 +210,13 @@ export class InventarioService {
         data,
         meta: {
           total,
+          page: pagina,
+          limit: limite ?? total,
+          totalPages: limite
+            ? Math.ceil(total / limite)
+            : total > 0
+              ? 1
+              : 0,
         },
       };
     } catch (error) {
