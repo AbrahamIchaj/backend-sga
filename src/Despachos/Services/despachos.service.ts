@@ -44,10 +44,36 @@ export class DespachosService {
     query: DisponibilidadDespachoQueryDto,
   ): Promise<DisponibilidadProductoResponse[]> {
     try {
-      const { codigoInsumo, lote, codigoPresentacion } = query;
+      const {
+        codigoInsumo,
+        lote,
+        codigoPresentacion,
+        idUsuario,
+        renglones = [],
+      } = query;
       const where: Prisma.InventarioWhereInput = {
         cantidadDisponible: { gt: 0 },
       };
+
+      let renglonesFiltro: number[] = Array.isArray(renglones)
+        ? renglones
+            .map((valor) => Number(valor))
+            .filter((valor) => Number.isFinite(valor) && valor > 0)
+        : [];
+
+      if (!renglonesFiltro.length && idUsuario) {
+        renglonesFiltro = await obtenerRenglonesPermitidos(
+          this.prisma,
+          idUsuario,
+        );
+      }
+
+      if (renglonesFiltro.length) {
+        where.renglon = { in: renglonesFiltro };
+      } else if (idUsuario) {
+        // Usuario autenticado sin renglones autorizados no debe ver existencias
+        return [];
+      }
 
       if (codigoInsumo) where.codigoInsumo = codigoInsumo;
       if (lote)

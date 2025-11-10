@@ -93,4 +93,31 @@ export class DisponibilidadDespachoQueryDto {
   @IsInt()
   @Type(() => Number)
   codigoPresentacion?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  @Min(1)
+  idUsuario?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    if (Array.isArray(value)) {
+      return value
+        .map((n) => Number(n))
+        .filter((n) => Number.isFinite(n) && n > 0);
+    }
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((item) => Number(item.trim()))
+        .filter((n) => Number.isFinite(n) && n > 0);
+    }
+    return undefined;
+  })
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  renglones?: number[];
 }
