@@ -150,7 +150,8 @@ export type CompraResumen = {
   serieFactura: string;
   tipoCompra: string;
   programas: number[];
-  noKardex: number;
+  noKardex: number | string | null;
+  kardexPorDetalle: number[];
   totalItems: number;
   totalCantidad: number;
   totalFactura: number;

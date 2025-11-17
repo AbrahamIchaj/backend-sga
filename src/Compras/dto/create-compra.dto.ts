@@ -71,6 +71,10 @@ export class CreateCompraDetalleDto {
   @Min(0)
   precioTotalFactura: number;
 
+  @IsNumber()
+  @Min(1)
+  noKardex: number;
+
   @IsOptional()
   @IsString()
   observaciones?: string;
@@ -111,9 +115,6 @@ export class CreateCompraDto {
 
   @IsNumber()
   numero1h: number;
-
-  @IsNumber()
-  noKardex: number;
 
   @IsArray()
   @ValidateNested({ each: true })

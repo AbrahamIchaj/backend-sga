@@ -35,7 +35,7 @@ model IngresoCompras {
   ordenCompra           Int
   programas             Int[]                   @default([])
   numero1h              Int
-  noKardex              Int
+  noKardex              Int?
   IngresoComprasDetalle IngresoComprasDetalle[]
   Inventario            Inventario[]
   DespachoDetalle       DespachoDetalle[]
@@ -55,6 +55,7 @@ model IngresoComprasDetalle {
   cantidadTotal           Int
   precioUnitario          Decimal               @db.Decimal(10, 3)
   precioTotalFactura      Decimal               @db.Decimal(10, 3)
+  noKardex                Int
   observaciones           String?               @db.Text
   IngresoCompras          IngresoCompras        @relation(fields: [idIngresoCompras], references: [idIngresoCompras])
   CatalogoInsumos         CatalogoInsumos       @relation(fields: [idCatalogoInsumos], references: [idCatalogoInsumos])

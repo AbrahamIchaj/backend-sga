@@ -51,6 +51,14 @@ export class ComprasService {
     }
 
     dto.detalles.forEach((d, idx) => {
+      const kardexValue = Number(d.noKardex);
+      if (!Number.isFinite(kardexValue) || kardexValue <= 0) {
+        throw new BadRequestException(
+          `El detalle #${idx + 1} debe incluir un número de Kardex válido`,
+        );
+      }
+      d.noKardex = kardexValue;
+
       if (!Array.isArray(d.lotes) || d.lotes.length === 0) {
         d.lotes = [
           {
@@ -82,8 +90,10 @@ export class ComprasService {
           ordenCompra: dto.ordenCompra,
           programas: dto.programas,
           numero1h: dto.numero1h,
-          noKardex: dto.noKardex,
-          },
+          ...(dto.detalles.length === 1
+            ? { noKardex: dto.detalles[0].noKardex }
+            : {}),
+        } as any,
       });
 
       let totalFactura = 0;
@@ -120,9 +130,10 @@ export class ComprasService {
             cantidadTotal: det.cantidadTotal,
             precioUnitario: new Prisma.Decimal(det.precioUnitario),
             precioTotalFactura: new Prisma.Decimal(det.precioTotalFactura),
+            noKardex: det.noKardex,
             // nota: campo cartaCompromiso eliminado de IngresoComprasDetalle (persistido sólo en lotes)
             observaciones: det.observaciones ?? null,
-          },
+          } as any,
         });
 
         const lotesARegistrar =
@@ -166,7 +177,7 @@ export class ComprasService {
             data: {
               idIngresoCompras: ingreso.idIngresoCompras,
               idIngresoComprasLotes: loteCreado.idIngresoComprasLotes,
-              noKardex: dto.noKardex,
+              noKardex: det.noKardex,
               renglon: detalle.renglon,
               codigoInsumo: detalle.codigoInsumo,
               nombreInsumo: detalle.nombreInsumo,
@@ -260,11 +271,23 @@ export class ComprasService {
       0,
     );
 
+    const kardexPorDetalle = Array.from(
+      new Set(
+        compra.IngresoComprasDetalle.map((detalle) =>
+          Number((detalle as any).noKardex),
+        ).filter((valor) => Number.isFinite(valor) && valor > 0),
+      ),
+    );
+
     return {
       ...compra,
       totalItems,
       totalCantidad,
       totalFactura,
+      kardexPorDetalle,
+      noKardex:
+        compra.noKardex ??
+        (kardexPorDetalle.length ? kardexPorDetalle.join(', ') : null),
       // Agregar información de productos sin lote vs con lote
       resumenLotes: compra.IngresoComprasDetalle.map((detalle) => ({
         idDetalle: detalle.idIngresoComprasDetalle,
@@ -374,27 +397,40 @@ export class ComprasService {
       this.prisma.ingresoCompras.count({ where }),
     ]);
 
-    const resumen = data.map((c) => ({
-      idIngresoCompras: c.idIngresoCompras,
-      fechaIngreso: c.fechaIngreso,
-      proveedor: c.proveedor,
-      numeroFactura: c.numeroFactura,
-      serieFactura: c.serieFactura,
-      tipoCompra: c.tipoCompra,
-      ordenCompra: c.ordenCompra,
-      programas: c.programas ?? [],
-      numero1h: c.numero1h,
-      noKardex: c.noKardex,
-      totalItems: c.IngresoComprasDetalle.length,
-      totalCantidad: c.IngresoComprasDetalle.reduce(
-        (acc, d) => acc + d.cantidadTotal,
-        0,
-      ),
-      totalFactura: c.IngresoComprasDetalle.reduce(
-        (acc, d) => acc + Number(d.precioTotalFactura),
-        0,
-      ),
-    }));
+    const resumen = data.map((c) => {
+      const kardexPorDetalle = Array.from(
+        new Set(
+          (c.IngresoComprasDetalle ?? [])
+            .map((d) => Number((d as any).noKardex))
+            .filter((valor) => Number.isFinite(valor) && valor > 0),
+        ),
+      );
+
+      return {
+        idIngresoCompras: c.idIngresoCompras,
+        fechaIngreso: c.fechaIngreso,
+        proveedor: c.proveedor,
+        numeroFactura: c.numeroFactura,
+        serieFactura: c.serieFactura,
+        tipoCompra: c.tipoCompra,
+        ordenCompra: c.ordenCompra,
+        programas: c.programas ?? [],
+        numero1h: c.numero1h,
+        noKardex:
+          c.noKardex ??
+          (kardexPorDetalle.length ? kardexPorDetalle.join(', ') : null),
+        kardexPorDetalle,
+        totalItems: c.IngresoComprasDetalle.length,
+        totalCantidad: c.IngresoComprasDetalle.reduce(
+          (acc, d) => acc + d.cantidadTotal,
+          0,
+        ),
+        totalFactura: c.IngresoComprasDetalle.reduce(
+          (acc, d) => acc + Number(d.precioTotalFactura),
+          0,
+        ),
+      };
+    });
 
     return { data: resumen, total, page, limit };
   }
